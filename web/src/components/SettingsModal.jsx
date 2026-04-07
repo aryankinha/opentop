@@ -1,9 +1,9 @@
 import React, { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import GeneralSettings from './settings/GeneralSettings'
-import MemorySettings from './settings/MemorySettings'
-import ConnectionSettings from './settings/ConnectionSettings'
+import GeneralSettings from './Settings/GeneralSettings'
+import MemorySettings from './Settings/MemorySettings'
+import ConnectionSettings from './Settings/ConnectionSettings'
 
 const TABS = [
   { id: 'general', label: 'General', icon: (
