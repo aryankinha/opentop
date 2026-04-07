@@ -1,15 +1,13 @@
 // src/core/copilotClient.js
 // Wraps the @github/copilot-sdk CopilotClient.
 // Communicates with the Copilot CLI via JSON-RPC.
-// Handles authentication by discovering stored GitHub tokens.
+// Uses cached token from auth module (loaded once at startup).
 
 import { CopilotClient } from '@github/copilot-sdk';
-import { readFileSync } from 'node:fs';
-import { execSync } from 'node:child_process';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
 import logger from '../utils/logger.js';
 import { buildGlobalMemoryPrompt } from './globalMemory.js';
+import { getToken, getMaskedToken } from '../auth/token.js';
 
 /** @type {CopilotClient | null} */
 let client = null;
@@ -19,131 +17,15 @@ function getReasoningEffortForModel(model) {
   return undefined;
 }
 
-// ─── Token discovery ────────────────────────────────────────────────
+// ─── Token access ───────────────────────────────────────────────────
 
 /**
- * Discovers a stored GitHub token by checking multiple locations in priority order:
- *   1. COPILOT_GITHUB_TOKEN env var (highest priority)
- *   2. GH_TOKEN env var
- *   3. GITHUB_TOKEN env var
- *   4. ~/.copilot/config.json — logged_in_users[].token / oauth_token / access_token
- *   5. macOS Keychain — service "copilot-cli", account "<host>:<login>"
- *   6. ~/.config/github-copilot/hosts.json — github.com oauth_token
- *
- * @returns {string | null} The first token found, or null if none found.
+ * Gets the cached GitHub token from the auth module.
+ * Token is loaded once at startup and cached in memory.
+ * @returns {string | null} The cached token, or null if not available.
  */
 function getStoredGithubToken() {
-  // 1. Environment variables (highest priority)
-  if (process.env.COPILOT_GITHUB_TOKEN) {
-    logger.debug('Token found in COPILOT_GITHUB_TOKEN env var');
-    return process.env.COPILOT_GITHUB_TOKEN;
-  }
-  if (process.env.GH_TOKEN) {
-    logger.debug('Token found in GH_TOKEN env var');
-    return process.env.GH_TOKEN;
-  }
-  if (process.env.GITHUB_TOKEN) {
-    logger.debug('Token found in GITHUB_TOKEN env var');
-    return process.env.GITHUB_TOKEN;
-  }
-
-  // 2. Try ~/.copilot/config.json for inline tokens
-  let copilotConfig = null;
-  try {
-    const configPath = join(homedir(), '.copilot', 'config.json');
-    copilotConfig = JSON.parse(readFileSync(configPath, 'utf8'));
-    logger.debug('Read ~/.copilot/config.json', {
-      keys: Object.keys(copilotConfig),
-      userCount: (copilotConfig.logged_in_users || copilotConfig.users || []).length,
-    });
-
-    const users = copilotConfig.logged_in_users || copilotConfig.users || [];
-    for (const user of users) {
-      if (user.token) return user.token;
-      if (user.oauth_token) return user.oauth_token;
-      if (user.access_token) return user.access_token;
-    }
-    // Top-level token field
-    if (copilotConfig.token) return copilotConfig.token;
-    if (copilotConfig.oauth_token) return copilotConfig.oauth_token;
-  } catch (err) {
-    logger.debug('Could not read ~/.copilot/config.json', { error: err.message });
-  }
-
-  // 3. macOS Keychain — the Copilot CLI stores tokens here with:
-  //      service = "copilot-cli"
-  //      account = "<host>:<login>"  (e.g. "https://github.com:aryankinha2024")
-  if (process.platform === 'darwin') {
-    // Build account strings from known logged-in users
-    const users = copilotConfig?.logged_in_users || copilotConfig?.users || [];
-    // Also try last_logged_in_user
-    const lastUser = copilotConfig?.last_logged_in_user;
-    const candidates = [...users];
-    if (lastUser) candidates.push(lastUser);
-
-    for (const user of candidates) {
-      const host = user.host || 'https://github.com';
-      const login = user.login;
-      if (!login) continue;
-
-      const account = `${host}:${login}`;
-      try {
-        const token = execSync(
-          `security find-generic-password -s "copilot-cli" -a "${account}" -w`,
-          { timeout: 5000, stdio: ['pipe', 'pipe', 'pipe'] }
-        ).toString().trim();
-
-        if (token) {
-          logger.info('Token found in macOS Keychain', { account, service: 'copilot-cli' });
-          return token;
-        }
-      } catch {
-        logger.debug('No Keychain entry for account', { account });
-      }
-    }
-
-    // Fallback: try without specific account (any copilot-cli entry)
-    try {
-      const token = execSync(
-        'security find-generic-password -s "copilot-cli" -w',
-        { timeout: 5000, stdio: ['pipe', 'pipe', 'pipe'] }
-      ).toString().trim();
-
-      if (token) {
-        logger.info('Token found in macOS Keychain (generic copilot-cli)');
-        return token;
-      }
-    } catch {
-      logger.debug('No generic copilot-cli Keychain entry found');
-    }
-  }
-
-  // 4. Try ~/.config/github-copilot/hosts.json
-  try {
-    const hostsPath = join(homedir(), '.config', 'github-copilot', 'hosts.json');
-    const hosts = JSON.parse(readFileSync(hostsPath, 'utf8'));
-    logger.debug('Read ~/.config/github-copilot/hosts.json', {
-      keys: Object.keys(hosts),
-    });
-
-    const githubHost =
-      hosts['github.com'] ||
-      hosts['https://github.com'] ||
-      hosts['github.com:443'] ||
-      {};
-    if (githubHost.oauth_token) return githubHost.oauth_token;
-    if (githubHost.token) return githubHost.token;
-
-    // Try iterating all hosts
-    for (const [host, data] of Object.entries(hosts)) {
-      if (data?.oauth_token) return data.oauth_token;
-      if (data?.token) return data.token;
-    }
-  } catch (err) {
-    logger.debug('Could not read hosts.json', { error: err.message });
-  }
-
-  return null;
+  return getToken();
 }
 
 /**
@@ -157,8 +39,8 @@ export { getStoredGithubToken };
 
 /**
  * Creates and starts a CopilotClient instance.
- * Tries to find a stored GitHub token for explicit auth;
- * falls back to the SDK's default CLI-based auth (useLoggedInUser).
+ * Uses cached token from auth module (loaded once at startup).
+ * Falls back to the SDK's default CLI-based auth (useLoggedInUser).
  * Called once at server startup.
  */
 export async function initClient() {
@@ -166,10 +48,9 @@ export async function initClient() {
 
   const token = getStoredGithubToken();
 
-  // FIX 3: Auth debug logging
   logger.info('Auth method', {
-    method: token ? 'stored-token' : 'logged-in-user',
-    tokenPrefix: token ? token.slice(0, 8) + '...' : 'none',
+    method: token ? 'cached-token' : 'logged-in-user',
+    tokenPrefix: getMaskedToken(),
   });
 
   if (token) {

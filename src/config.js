@@ -31,6 +31,17 @@ const DEFAULT_CONFIG = {
   maxContextTokens: 8000,
   keepRecentMessages: 10,
   walEnabled: true,
+  // Tunnel configuration
+  tunnel: {
+    mode: 'quick',        // "quick" | "persistent" | "disabled"
+    domain: null,         // For persistent mode (e.g., "api.example.com")
+    tunnelName: 'opentop', // Named tunnel identifier
+    tunnelId: null,       // UUID from cloudflared (auto-populated)
+  },
+  // Auth configuration  
+  auth: {
+    cacheToken: true,     // Cache token in memory at startup
+  },
 };
 
 function loadConfig() {
