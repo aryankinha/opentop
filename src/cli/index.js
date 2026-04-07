@@ -41,6 +41,7 @@ export function parseCliArgs(args) {
       options: {
         port: { type: 'string', short: 'p' },
         verbose: { type: 'boolean', short: 'v', default: false },
+        debug: { type: 'boolean', short: 'd', default: false },
         model: { type: 'string', short: 'm' },
         help: { type: 'boolean', short: 'h', default: false },
         version: { type: 'boolean', default: false },
@@ -154,9 +155,30 @@ async function cmdReset(flags) {
   console.log('');
 }
 
-function cmdConfig() {
+async function cmdConfig(args) {
   const configPath = join(CONFIG_DIR, 'config.json');
 
+  // Handle 'config set name <value>'
+  if (args[0] === 'set' && args[1] === 'name' && args[2]) {
+    const newName = args[2];
+    
+    try {
+      const { setDeviceName } = await import('../config.js');
+      await setDeviceName(newName);
+      
+      console.log('');
+      console.log(ui.success(`Device name updated to: ${ui.colors.highlight(newName)}`));
+      console.log('');
+      return;
+    } catch (err) {
+      console.log('');
+      console.log(ui.error(err.message));
+      console.log('');
+      process.exit(1);
+    }
+  }
+
+  // Default: show config
   console.log('');
   console.log(ui.header('OpenTop — Configuration'));
   console.log('');
@@ -186,6 +208,8 @@ function cmdConfig() {
       }
       console.log(`  ${ui.colors.bold(key.padEnd(maxKeyLen + 2))}${displayValue}`);
     }
+    console.log('');
+    console.log(ui.info('Set device name: opentop config set name <value>'));
     console.log('');
   } catch (err) {
     console.log(ui.error(`Failed to read config: ${err.message}`));
@@ -355,9 +379,10 @@ function cmdHelp() {
     ${ui.colors.action('help')}               Show this help message
 
   ${ui.colors.bold('OPTIONS')}
-    ${ui.colors.muted('--port, -p <N>')}      Port to run on ${ui.colors.muted('(auto-selects 4000-9000)')}
+    ${ui.colors.muted('--port, -p <N>')}      Port to run on ${ui.colors.muted('(auto-selects 15000-65000)')}
     ${ui.colors.muted('--no-tunnel')}         Disable tunnel (local only)
     ${ui.colors.muted('--foreground')}        Run in foreground (blocks terminal)
+    ${ui.colors.muted('--debug, -d')}         Enable debug logging (HTTP requests, auth)
     ${ui.colors.muted('--verbose, -v')}       Enable verbose logging
     ${ui.colors.muted('--model, -m <M>')}     Override default model
     ${ui.colors.muted('--force, -f')}         Skip confirmations (reset)
@@ -410,6 +435,7 @@ export async function main(args = process.argv.slice(2)) {
       await start({
         port: flags.port,
         verbose: flags.verbose,
+        debug: flags.debug,
         model: flags.model,
         noTunnel: flags['no-tunnel'],
         foreground: flags.foreground,
@@ -421,7 +447,8 @@ export async function main(args = process.argv.slice(2)) {
     } else if (command === 'auth') {
       await cmdAuth();
     } else if (command === 'config') {
-      cmdConfig();
+      // Pass remaining args for subcommands
+      await cmdConfig(args.slice(1));
     } else if (command === 'doctor') {
       await cmdDoctor();
     } else if (command === 'reset') {

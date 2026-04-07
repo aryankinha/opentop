@@ -7,6 +7,7 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 import logger from './utils/logger.js';
+import { generateDeviceName } from './utils/deviceName.js';
 
 const CONFIG_DIR = join(homedir(), '.opentop');
 const CONFIG_PATH = join(CONFIG_DIR, 'config.json');
@@ -14,6 +15,7 @@ const CONFIG_PATH = join(CONFIG_DIR, 'config.json');
 export { CONFIG_DIR, CONFIG_PATH };
 
 const DEFAULT_CONFIG = {
+  deviceName: generateDeviceName(), // Auto-generated on first run
   port: 3000,
   defaultModel: 'claude-sonnet-4.5',
   availableModels: [
@@ -116,6 +118,39 @@ export function validateConfig(cfg) {
 
 export const config = loadConfig();
 validateConfig(config);
+
+// ─── Device name helpers ────────────────────────────────────────────
+
+/**
+ * Gets the device name from config.
+ * @returns {string}
+ */
+export function getDeviceName() {
+  return config.deviceName || DEFAULT_CONFIG.deviceName;
+}
+
+/**
+ * Sets a new device name in config.
+ * @param {string} name - New device name
+ */
+export async function setDeviceName(name) {
+  const { isValidDeviceName } = await import('./utils/deviceName.js');
+  
+  if (!isValidDeviceName(name)) {
+    throw new Error('Invalid device name. Must be 3-50 characters, alphanumeric + hyphens only.');
+  }
+  
+  config.deviceName = name;
+  
+  // Write back to file
+  const current = existsSync(CONFIG_PATH) 
+    ? JSON.parse(readFileSync(CONFIG_PATH, 'utf-8'))
+    : {};
+  
+  current.deviceName = name;
+  writeFileSync(CONFIG_PATH, JSON.stringify(current, null, 2), 'utf-8');
+  logger.info('Device name updated', { name });
+}
 
 // ─── Ensure ~ is trusted by Copilot CLI ─────────────────────────────
 

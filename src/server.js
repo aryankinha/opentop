@@ -33,7 +33,25 @@ const publicDir = join(__dirname, 'public');
 // 1. CORS - allow cross-origin requests
 app.use(cors());
 
-// 2. Serve static files FIRST (no auth required)
+// 2. Debug logging middleware (if debug mode enabled)
+if (process.env.OPENTOP_DEBUG === 'true') {
+  app.use((req, res, next) => {
+    const start = Date.now();
+    res.on('finish', () => {
+      const duration = Date.now() - start;
+      logger.debug('HTTP request', {
+        method: req.method,
+        path: req.path,
+        status: res.statusCode,
+        duration: `${duration}ms`,
+        hasAuth: !!req.headers.authorization || !!req.headers['x-pairing-token'],
+      });
+    });
+    next();
+  });
+}
+
+// 3. Serve static files FIRST (no auth required)
 //    This ensures CSS, JS, images, favicon etc. are served without PIN
 if (existsSync(publicDir)) {
   app.use(express.static(publicDir, {
@@ -47,10 +65,10 @@ if (existsSync(publicDir)) {
   logger.info('Serving static files from src/public/');
 }
 
-// 3. Parse JSON bodies (for API routes)
+// 4. Parse JSON bodies (for API routes)
 app.use(express.json());
 
-// 4. Auth middleware - only applies to API routes (static already served above)
+// 5. Auth middleware - only applies to API routes (static already served above)
 app.use(pairingAuthMiddleware);
 
 // ─── WebSocket clients map ──────────────────────────────────────────
@@ -201,6 +219,7 @@ wss.on('connection', (ws) => {
  * @param {object} [overrides] - Optional overrides for config
  * @param {number} [overrides.port] - Override server port
  * @param {boolean} [overrides.verbose] - Enable verbose/debug logging
+ * @param {boolean} [overrides.debug] - Enable debug mode (HTTP request logging)
  * @param {string} [overrides.model] - Override default model
  */
 export async function startServer(overrides = {}) {
@@ -208,6 +227,10 @@ export async function startServer(overrides = {}) {
     // Apply overrides
     if (overrides.port) config.port = overrides.port;
     if (overrides.verbose) process.env.OPENTOP_VERBOSE = 'true';
+    if (overrides.debug) {
+      process.env.LOG_LEVEL = 'debug';
+      process.env.OPENTOP_DEBUG = 'true';
+    }
     if (overrides.model) config.defaultModel = overrides.model;
 
     // 1. Load config (already done via import)

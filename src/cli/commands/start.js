@@ -22,9 +22,10 @@ const CONFIG_DIR = join(homedir(), '.opentop');
 const RUNTIME_DIR = join(CONFIG_DIR, 'runtime');
 const VERSION = '0.1.0';
 
-// Port range to auto-select from (avoids common ports like 3000)
-const PORT_RANGE_START = 4000;
-const PORT_RANGE_END = 9000;
+// Port range to auto-select from (high ports to avoid conflicts)
+const PORT_RANGE_START = 15000;
+const PORT_RANGE_END = 65000;
+const MAX_PORT_ATTEMPTS = 10;
 
 /**
  * Checks if a port is available.
@@ -45,16 +46,29 @@ function isPortAvailable(port) {
 
 /**
  * Finds an available port in the specified range.
+ * Uses random selection for speed, falls back to sequential scan.
  * @param {number} start - Start of port range
  * @param {number} end - End of port range
  * @returns {Promise<number|null>} Available port or null if none found
  */
 async function findAvailablePort(start = PORT_RANGE_START, end = PORT_RANGE_END) {
+  const { randomInt } = await import('node:crypto');
+  
+  // Try random ports first (fast, no collisions)
+  for (let i = 0; i < MAX_PORT_ATTEMPTS; i++) {
+    const port = randomInt(start, end + 1);
+    if (await isPortAvailable(port)) {
+      return port;
+    }
+  }
+  
+  // Fallback: sequential scan (slower but guaranteed if any port is free)
   for (let port = start; port <= end; port++) {
     if (await isPortAvailable(port)) {
       return port;
     }
   }
+  
   return null;
 }
 
@@ -77,6 +91,7 @@ async function isServerRunning(port) {
  * @param {object} flags - Command flags
  * @param {number} [flags.port] - Specific port (auto-selects if not provided)
  * @param {boolean} [flags.verbose=false]
+ * @param {boolean} [flags.debug=false]
  * @param {string} [flags.model]
  * @param {boolean} [flags.tunnel] - Force tunnel (backwards compat)
  * @param {boolean} [flags.noTunnel=false] - Disable tunnel
@@ -84,8 +99,15 @@ async function isServerRunning(port) {
  */
 export async function start(flags = {}) {
   const verbose = flags.verbose || false;
+  const debug = flags.debug || false;
   const noTunnel = flags.noTunnel || false;
   const foreground = flags.foreground || false;
+
+  // Set debug mode
+  if (debug) {
+    process.env.LOG_LEVEL = 'debug';
+    process.env.OPENTOP_DEBUG = 'true';
+  }
 
   // Load token at startup (caches for entire session)
   loadToken();
@@ -145,7 +167,7 @@ export async function start(flags = {}) {
  * Starts OpenTop in background (daemon) mode.
  */
 async function startBackground(port, flags) {
-  const { model, noTunnel } = flags;
+  const { model, noTunnel, debug } = flags;
 
   console.log('');
   console.log(ui.header('OpenTop — Starting'));
@@ -156,6 +178,7 @@ async function startBackground(port, flags) {
     port,
     model,
     noTunnel,
+    debug,
   });
 
   if (!result.success) {
@@ -165,8 +188,27 @@ async function startBackground(port, flags) {
     process.exit(1);
   }
 
+  // Get device name
+  const { getDeviceName } = await import('../../config.js');
+  const deviceName = getDeviceName();
+
   console.log('');
+  
+  // Show QR code with URL + PIN
+  const displayUrl = result.url || `http://localhost:${result.port}`;
+  const connectUrl = `${displayUrl}?pin=${result.pairingPin}`;
+  try {
+    const { printQR } = await import('../../utils/qr.js');
+    printQR(connectUrl);
+  } catch (err) {
+    // QR print failed, continue
+    if (debug) {
+      console.log(ui.warn(`QR code failed: ${err.message}`));
+    }
+  }
+
   console.log(ui.box('OpenTop is running ' + ui.symbols.rocket, [
+    { label: 'Device', value: deviceName },
     { label: 'URL', value: result.url || `http://localhost:${result.port}` },
     { label: 'PIN', value: result.pairingPin },
     { label: 'Port', value: String(result.port) },
@@ -175,6 +217,10 @@ async function startBackground(port, flags) {
   console.log('');
   console.log(`  ${ui.symbols.link} Open: ${ui.colors.highlight(result.url || `http://localhost:${result.port}`)}`);
   console.log(`  ${ui.symbols.lock} PIN: ${ui.colors.highlight(result.pairingPin)}`);
+  if (result.url) {
+    console.log('');
+    console.log(ui.info('Scan QR code or open URL on your phone'));
+  }
   console.log('');
   console.log(`  Stop: ${ui.colors.command('opentop stop')}`);
   console.log(`  Status: ${ui.colors.command('opentop status')}`);
@@ -185,7 +231,7 @@ async function startBackground(port, flags) {
  * Starts OpenTop in foreground mode (blocks terminal).
  */
 async function startForeground(port, flags) {
-  const { verbose, noTunnel, model } = flags;
+  const { verbose, noTunnel, model, debug } = flags;
 
   // Load config
   const config = loadConfig() || {};
@@ -222,6 +268,7 @@ async function startForeground(port, flags) {
   // ─── Start server ────────────────────────────────────────────────────
   const overrides = { port };
   if (verbose) overrides.verbose = true;
+  if (debug) overrides.debug = true;
   if (flags.model) overrides.model = flags.model;
 
   const serverPath = join(__dirname, '..', '..', 'server.js');
@@ -291,10 +338,11 @@ async function startForeground(port, flags) {
   console.log('');
 
   if (tunnelUrl) {
-    // Print QR code with direct tunnel URL
+    // Print QR code with PIN included in URL
+    const connectUrl = `${tunnelUrl}?pin=${pairing.pin}`;
     try {
       const { printQR } = await import('../../utils/qr.js');
-      printQR(tunnelUrl);
+      printQR(connectUrl);
     } catch {
       // QR print failed, continue
     }
@@ -309,6 +357,8 @@ async function startForeground(port, flags) {
     console.log('');
     console.log(`  ${ui.symbols.link} Open: ${ui.colors.highlight(tunnelUrl)}`);
     console.log(`  ${ui.symbols.lock} PIN: ${ui.colors.highlight(pairing.pin)}`);
+    console.log('');
+    console.log(ui.info('Scan QR code or open URL on your phone'));
   } else {
     console.log(ui.box('OpenTop is running ' + ui.symbols.rocket, [
       { label: 'Local', value: `http://localhost:${port}` },

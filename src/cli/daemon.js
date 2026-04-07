@@ -61,10 +61,11 @@ export function getDaemonStatus() {
  * @param {number} options.port
  * @param {string} [options.model]
  * @param {boolean} [options.noTunnel]
+ * @param {boolean} [options.debug]
  * @returns {Promise<{ success: boolean, pid?: number, error?: string }>}
  */
 export async function startDaemon(options) {
-  const { port, model, noTunnel } = options;
+  const { port, model, noTunnel, debug } = options;
   
   ensureRuntimeDir();
   
@@ -82,6 +83,7 @@ export async function startDaemon(options) {
   const args = [daemonScript, '--port', String(port)];
   if (model) args.push('--model', model);
   if (noTunnel) args.push('--no-tunnel');
+  if (debug) args.push('--debug');
   
   // Spawn detached process
   const child = spawn(process.execPath, args, {
@@ -90,6 +92,7 @@ export async function startDaemon(options) {
     env: {
       ...process.env,
       OPENTOP_DAEMON: 'true',
+      ...(debug ? { LOG_LEVEL: 'debug', OPENTOP_DEBUG: 'true' } : {}),
     },
   });
   

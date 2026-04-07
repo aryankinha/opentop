@@ -34,6 +34,7 @@ const { values: flags } = parseArgs({
     port: { type: 'string' },
     model: { type: 'string' },
     'no-tunnel': { type: 'boolean' },
+    debug: { type: 'boolean' },
   },
   allowPositionals: true,
 });
@@ -41,9 +42,16 @@ const { values: flags } = parseArgs({
 const port = parseInt(flags.port, 10) || 4000;
 const model = flags.model;
 const noTunnel = flags['no-tunnel'] || false;
+const debug = flags.debug || false;
+
+// Set debug env vars
+if (debug) {
+  process.env.LOG_LEVEL = 'debug';
+  process.env.OPENTOP_DEBUG = 'true';
+}
 
 async function main() {
-  log(`Daemon starting on port ${port}`);
+  log(`Daemon starting on port ${port} (debug=${debug})`);
   
   try {
     // Load auth token
@@ -66,6 +74,7 @@ async function main() {
     
     const overrides = { port };
     if (model) overrides.model = model;
+    if (debug) overrides.debug = true;
     
     await startServer(overrides);
     log(`Server started on port ${port}`);

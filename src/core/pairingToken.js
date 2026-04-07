@@ -210,8 +210,16 @@ export function pairingAuthMiddleware(req, res, next) {
 
   // Validate
   if (!validatePairingToken(token)) {
-    // Only log for actual API requests, not static file 404s
-    logger.debug('Unauthorized API request', { path: req.path });
+    // Log auth failure details in debug mode
+    const logLevel = process.env.OPENTOP_DEBUG === 'true' ? 'warn' : 'debug';
+    const reason = !token ? 'no token provided' : 'invalid token';
+    logger[logLevel]('Auth failed', { 
+      path: req.path, 
+      reason,
+      hasAuthHeader: !!req.headers.authorization,
+      hasTokenHeader: !!req.headers['x-pairing-token'],
+      hasTokenQuery: !!req.query.token,
+    });
     return res.status(401).json({
       error: 'Unauthorized',
       message: 'Valid pairing PIN required. Enter your 6-digit PIN to connect.',
