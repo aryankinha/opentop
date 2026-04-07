@@ -1,0 +1,46 @@
+{
+  "name": "opentop",
+  "version": "0.1.0",
+  "description": "Self-hosted AI agent backend powered by GitHub Copilot SDK",
+  "type": "module",
+  "bin": {
+    "opentop": "./bin/opentop.js"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "cli": "node bin/opentop.js",
+    "build:web": "cd web && npm run build -- --outDir ../src/public",
+    "dev:web": "cd web && npm run dev",
+    "build": "npm run build:web",
+    "postinstall": "echo 'OpenTop installed. Run: opentop doctor'"
+  },
+  "keywords": [
+    "ai",
+    "agent",
+    "copilot",
+    "github",
+    "self-hosted"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "README.md"
+  ],
+  "dependencies": {
+    "@github/copilot-sdk": "latest",
+    "cors": "^2.8.5",
+    "express": "^4.18.0",
+    "qrcode-terminal": "^0.12.0",
+    "uuid": "^9.0.0",
+    "ws": "^8.16.0"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.27",
+    "postcss": "^8.5.8",
+    "tailwindcss": "^4.2.2"
+  }
+}
