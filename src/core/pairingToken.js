@@ -1,6 +1,7 @@
 // src/core/pairingToken.js
 // Manages pairing token generation, storage, and validation.
-// Token is generated on each `opentop start` and required for all API requests.
+// Token is generated on each `opentop start` and required for API requests.
+// Static files and UI are served without auth.
 
 import { randomBytes, randomInt } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync, mkdirSync, unlinkSync } from 'node:fs';
@@ -10,6 +11,69 @@ import logger from '../utils/logger.js';
 
 const RUNTIME_DIR = join(homedir(), '.opentop', 'runtime');
 const TOKEN_PATH = join(RUNTIME_DIR, 'pairing.json');
+
+// ─── Public paths that don't require auth ───────────────────────────
+
+const PUBLIC_PATH_PREFIXES = [
+  '/assets',
+  '/icons',
+  '/_app',
+  '/static',
+];
+
+const PUBLIC_EXACT_PATHS = [
+  '/',
+  '/index.html',
+  '/health',
+  '/favicon.ico',
+  '/favicon.svg',
+  '/manifest.json',
+  '/manifest.webmanifest',
+  '/sw.js',
+  '/service-worker.js',
+  '/robots.txt',
+];
+
+// File extensions that are always public (static assets)
+const PUBLIC_EXTENSIONS = /\.(js|css|html|svg|png|jpg|jpeg|gif|ico|woff|woff2|ttf|eot|webmanifest|json|map)$/i;
+
+/**
+ * Checks if a path is public (doesn't require auth).
+ * @param {string} path - Request path
+ * @returns {boolean}
+ */
+function isPublicPath(path) {
+  // Exact matches
+  if (PUBLIC_EXACT_PATHS.includes(path)) {
+    return true;
+  }
+  
+  // Prefix matches
+  if (PUBLIC_PATH_PREFIXES.some(prefix => path.startsWith(prefix))) {
+    return true;
+  }
+  
+  // Static file extensions
+  if (PUBLIC_EXTENSIONS.test(path)) {
+    return true;
+  }
+  
+  return false;
+}
+
+/**
+ * Checks if a path is a protected API route.
+ * @param {string} path - Request path
+ * @returns {boolean}
+ */
+function isApiPath(path) {
+  return (
+    path.startsWith('/api') ||
+    path.startsWith('/session') ||
+    path.startsWith('/sessions') ||
+    path.startsWith('/chat')
+  );
+}
 
 /**
  * Generates a new 6-digit pairing PIN.
@@ -104,15 +168,24 @@ export function clearPairingToken() {
 }
 
 /**
- * Express middleware that requires a valid pairing token.
+ * Express middleware that requires a valid pairing token for API routes.
+ * Static files and UI routes are served without auth.
+ * 
  * Token can be provided via:
  *   - Authorization: Bearer <token>
  *   - X-Pairing-Token: <token>
  *   - Query param: ?token=<token>
  */
 export function pairingAuthMiddleware(req, res, next) {
-  // Skip auth for health endpoint (needed for status check)
-  if (req.path === '/health') {
+  // Skip auth for public paths (static files, UI)
+  if (isPublicPath(req.path)) {
+    return next();
+  }
+
+  // Only require auth for API paths
+  if (!isApiPath(req.path)) {
+    // Not an API path and not explicitly public — let it through
+    // (will likely hit 404 or SPA fallback)
     return next();
   }
 
@@ -137,17 +210,15 @@ export function pairingAuthMiddleware(req, res, next) {
 
   // Validate
   if (!validatePairingToken(token)) {
-    logger.warn('Unauthorized request - invalid pairing token', {
-      path: req.path,
-      ip: req.ip,
-    });
+    // Only log for actual API requests, not static file 404s
+    logger.debug('Unauthorized API request', { path: req.path });
     return res.status(401).json({
       error: 'Unauthorized',
-      message: 'Valid pairing token required. Check your QR code or enter the pairing PIN.',
+      message: 'Valid pairing PIN required. Enter your 6-digit PIN to connect.',
     });
   }
 
   next();
 }
 
-export { TOKEN_PATH, RUNTIME_DIR };
+export { TOKEN_PATH, RUNTIME_DIR, isPublicPath, isApiPath };

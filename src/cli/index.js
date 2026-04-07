@@ -45,6 +45,7 @@ export function parseCliArgs(args) {
         help: { type: 'boolean', short: 'h', default: false },
         version: { type: 'boolean', default: false },
         'no-tunnel': { type: 'boolean', default: false },
+        foreground: { type: 'boolean', default: false },
         force: { type: 'boolean', short: 'f', default: false },
       },
       allowPositionals: true,
@@ -354,8 +355,9 @@ function cmdHelp() {
     ${ui.colors.action('help')}               Show this help message
 
   ${ui.colors.bold('OPTIONS')}
-    ${ui.colors.muted('--port, -p <N>')}      Port to run on ${ui.colors.muted('(default: 3000)')}
+    ${ui.colors.muted('--port, -p <N>')}      Port to run on ${ui.colors.muted('(auto-selects 4000-9000)')}
     ${ui.colors.muted('--no-tunnel')}         Disable tunnel (local only)
+    ${ui.colors.muted('--foreground')}        Run in foreground (blocks terminal)
     ${ui.colors.muted('--verbose, -v')}       Enable verbose logging
     ${ui.colors.muted('--model, -m <M>')}     Override default model
     ${ui.colors.muted('--force, -f')}         Skip confirmations (reset)
@@ -410,6 +412,7 @@ export async function main(args = process.argv.slice(2)) {
         verbose: flags.verbose,
         model: flags.model,
         noTunnel: flags['no-tunnel'],
+        foreground: flags.foreground,
       });
     } else if (command === 'stop') {
       await stop();

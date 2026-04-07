@@ -7,7 +7,7 @@ import { CopilotClient } from '@github/copilot-sdk';
 import { homedir } from 'node:os';
 import logger from '../utils/logger.js';
 import { buildGlobalMemoryPrompt } from './globalMemory.js';
-import { getToken, getMaskedToken } from '../auth/token.js';
+import { getToken } from '../auth/token.js';
 
 /** @type {CopilotClient | null} */
 let client = null;
@@ -48,9 +48,10 @@ export async function initClient() {
 
   const token = getStoredGithubToken();
 
+  // Log auth method without exposing token
   logger.info('Auth method', {
     method: token ? 'cached-token' : 'logged-in-user',
-    tokenPrefix: getMaskedToken(),
+    hasToken: !!token,
   });
 
   if (token) {

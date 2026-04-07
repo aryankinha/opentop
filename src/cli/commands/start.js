@@ -13,14 +13,18 @@ import { shouldRunSetup, runSetup, loadConfig } from '../setup.js';
 import { startTunnel, stopTunnel, getUrl, onStatusChanged, cleanup as tunnelCleanup } from '../../tunnel/manager.js';
 import { isCloudflaredInstalled } from '../../tunnel/quick.js';
 import { loadToken, hasToken } from '../../auth/token.js';
+import { startDaemon, getDaemonStatus } from '../daemon.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const CONFIG_DIR = join(homedir(), '.opentop');
 const RUNTIME_DIR = join(CONFIG_DIR, 'runtime');
-const PWA_BASE_URL = process.env.OPENTOP_PWA_URL || 'https://opentop.vercel.app';
 const VERSION = '0.1.0';
+
+// Port range to auto-select from (avoids common ports like 3000)
+const PORT_RANGE_START = 4000;
+const PORT_RANGE_END = 9000;
 
 /**
  * Checks if a port is available.
@@ -40,6 +44,21 @@ function isPortAvailable(port) {
 }
 
 /**
+ * Finds an available port in the specified range.
+ * @param {number} start - Start of port range
+ * @param {number} end - End of port range
+ * @returns {Promise<number|null>} Available port or null if none found
+ */
+async function findAvailablePort(start = PORT_RANGE_START, end = PORT_RANGE_END) {
+  for (let port = start; port <= end; port++) {
+    if (await isPortAvailable(port)) {
+      return port;
+    }
+  }
+  return null;
+}
+
+/**
  * Checks if server is already running.
  * @param {number} port
  * @returns {Promise<boolean>}
@@ -56,16 +75,17 @@ async function isServerRunning(port) {
 /**
  * Main start command handler.
  * @param {object} flags - Command flags
- * @param {number} [flags.port=3000]
+ * @param {number} [flags.port] - Specific port (auto-selects if not provided)
  * @param {boolean} [flags.verbose=false]
  * @param {string} [flags.model]
  * @param {boolean} [flags.tunnel] - Force tunnel (backwards compat)
  * @param {boolean} [flags.noTunnel=false] - Disable tunnel
+ * @param {boolean} [flags.foreground=false] - Run in foreground (blocks terminal)
  */
 export async function start(flags = {}) {
-  const port = flags.port ? parseInt(flags.port, 10) : 3000;
   const verbose = flags.verbose || false;
   const noTunnel = flags.noTunnel || false;
+  const foreground = flags.foreground || false;
 
   // Load token at startup (caches for entire session)
   loadToken();
@@ -76,37 +96,101 @@ export async function start(flags = {}) {
     if (!success) {
       process.exit(1);
     }
-    // Continue with start after setup
     console.log(ui.loading('Starting OpenTop...'));
     console.log('');
   }
 
-  // Load config
-  const config = loadConfig() || {};
-  const tunnelMode = config.tunnel?.mode || 'quick';
-  const tunnelDomain = config.tunnel?.domain;
+  // Determine port: use specified port or auto-select from range
+  let port;
+  if (flags.port) {
+    port = parseInt(flags.port, 10);
+  } else {
+    port = await findAvailablePort();
+    if (!port) {
+      console.log('');
+      console.log(ui.error(`No available ports in range ${PORT_RANGE_START}-${PORT_RANGE_END}`));
+      console.log('');
+      console.log(`  Try specifying a port: ${ui.colors.command('opentop --port 9999')}`);
+      console.log('');
+      process.exit(1);
+    }
+  }
 
-  // ─── Pre-flight checks ───────────────────────────────────────────────
   // Check if already running
-  if (await isServerRunning(port)) {
+  const existingDaemon = getDaemonStatus();
+  if (existingDaemon) {
     console.log('');
     console.log(ui.error('OpenTop is already running'));
-    console.log(`  ${ui.colors.muted('Port:')} ${port}`);
+    console.log(`  ${ui.colors.muted('Port:')} ${existingDaemon.port}`);
+    if (existingDaemon.url) {
+      console.log(`  ${ui.colors.muted('URL:')} ${existingDaemon.url}`);
+    }
+    console.log(`  ${ui.colors.muted('PIN:')} ${existingDaemon.pairingPin}`);
     console.log('');
     console.log(`  Stop it first: ${ui.colors.command('opentop stop')}`);
     console.log('');
     process.exit(1);
   }
 
-  // Check port availability
-  if (!(await isPortAvailable(port))) {
+  // ─── Background mode (default) ───────────────────────────────────────
+  if (!foreground) {
+    return startBackground(port, flags);
+  }
+
+  // ─── Foreground mode ─────────────────────────────────────────────────
+  return startForeground(port, flags);
+}
+
+/**
+ * Starts OpenTop in background (daemon) mode.
+ */
+async function startBackground(port, flags) {
+  const { model, noTunnel } = flags;
+
+  console.log('');
+  console.log(ui.header('OpenTop — Starting'));
+  console.log('');
+  console.log(ui.loading('Starting background server...'));
+
+  const result = await startDaemon({
+    port,
+    model,
+    noTunnel,
+  });
+
+  if (!result.success) {
     console.log('');
-    console.log(ui.error(`Port ${port} is already in use`));
-    console.log('');
-    console.log(`  Try: ${ui.colors.command(`opentop --port ${port + 1}`)}`);
+    console.log(ui.error(result.error));
     console.log('');
     process.exit(1);
   }
+
+  console.log('');
+  console.log(ui.box('OpenTop is running ' + ui.symbols.rocket, [
+    { label: 'URL', value: result.url || `http://localhost:${result.port}` },
+    { label: 'PIN', value: result.pairingPin },
+    { label: 'Port', value: String(result.port) },
+  ]));
+
+  console.log('');
+  console.log(`  ${ui.symbols.link} Open: ${ui.colors.highlight(result.url || `http://localhost:${result.port}`)}`);
+  console.log(`  ${ui.symbols.lock} PIN: ${ui.colors.highlight(result.pairingPin)}`);
+  console.log('');
+  console.log(`  Stop: ${ui.colors.command('opentop stop')}`);
+  console.log(`  Status: ${ui.colors.command('opentop status')}`);
+  console.log('');
+}
+
+/**
+ * Starts OpenTop in foreground mode (blocks terminal).
+ */
+async function startForeground(port, flags) {
+  const { verbose, noTunnel, model } = flags;
+
+  // Load config
+  const config = loadConfig() || {};
+  const tunnelMode = config.tunnel?.mode || 'quick';
+  const tunnelDomain = config.tunnel?.domain;
 
   // Check cloudflared if tunnel needed
   if (!noTunnel && !isCloudflaredInstalled()) {
@@ -207,13 +291,10 @@ export async function start(flags = {}) {
   console.log('');
 
   if (tunnelUrl) {
-    // Build connect URL with pairing info
-    const connectUrl = `${PWA_BASE_URL}/connect?url=${encodeURIComponent(tunnelUrl)}&pin=${pairing.pin}`;
-
-    // Print QR code
+    // Print QR code with direct tunnel URL
     try {
       const { printQR } = await import('../../utils/qr.js');
-      printQR(connectUrl);
+      printQR(tunnelUrl);
     } catch {
       // QR print failed, continue
     }
@@ -226,8 +307,7 @@ export async function start(flags = {}) {
     }));
 
     console.log('');
-    console.log(`  ${ui.symbols.phone} PWA: ${ui.colors.highlight(PWA_BASE_URL)}`);
-    console.log(`  ${ui.symbols.link} API: ${ui.colors.highlight(tunnelUrl)}`);
+    console.log(`  ${ui.symbols.link} Open: ${ui.colors.highlight(tunnelUrl)}`);
     console.log(`  ${ui.symbols.lock} PIN: ${ui.colors.highlight(pairing.pin)}`);
   } else {
     console.log(ui.box('OpenTop is running ' + ui.symbols.rocket, [

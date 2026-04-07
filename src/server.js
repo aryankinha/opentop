@@ -25,11 +25,32 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
 const server = createServer(app);
 
-// ─── Middleware ──────────────────────────────────────────────────────
+// ─── Static files directory ─────────────────────────────────────────
+const publicDir = join(__dirname, 'public');
+
+// ─── Middleware (ORDER MATTERS!) ────────────────────────────────────
+
+// 1. CORS - allow cross-origin requests
 app.use(cors());
+
+// 2. Serve static files FIRST (no auth required)
+//    This ensures CSS, JS, images, favicon etc. are served without PIN
+if (existsSync(publicDir)) {
+  app.use(express.static(publicDir, {
+    // Set proper MIME types
+    setHeaders: (res, path) => {
+      if (path.endsWith('.js')) {
+        res.setHeader('Content-Type', 'application/javascript');
+      }
+    }
+  }));
+  logger.info('Serving static files from src/public/');
+}
+
+// 3. Parse JSON bodies (for API routes)
 app.use(express.json());
 
-// Pairing token auth (skip for health endpoint)
+// 4. Auth middleware - only applies to API routes (static already served above)
 app.use(pairingAuthMiddleware);
 
 // ─── WebSocket clients map ──────────────────────────────────────────
@@ -63,15 +84,18 @@ app.use((err, _req, res, _next) => {
   });
 });
 
-// ─── Serve built web UI ─────────────────────────────────────────────
-const publicDir = join(__dirname, 'public');
-
+// ─── SPA fallback ───────────────────────────────────────────────────
+// Serve index.html for all non-API routes (client-side routing support)
 if (existsSync(publicDir)) {
-  // Serve static files
-  app.use(express.static(publicDir));
-
-  // SPA fallback — serve index.html for all non-API routes
   app.get('*', (req, res) => {
+    // Don't serve index.html for API routes
+    if (req.path.startsWith('/api') || 
+        req.path.startsWith('/session') || 
+        req.path.startsWith('/sessions') ||
+        req.path.startsWith('/chat')) {
+      return res.status(404).json({ error: 'Not found' });
+    }
+    
     const indexPath = join(publicDir, 'index.html');
     if (existsSync(indexPath)) {
       res.sendFile(indexPath);
@@ -79,8 +103,6 @@ if (existsSync(publicDir)) {
       res.status(404).json({ error: 'Web UI not built. Run: npm run build:web' });
     }
   });
-
-  logger.info('Serving web UI from src/public/');
 } else {
   logger.info('No web UI found. Run: npm run build:web to build it.');
 }
