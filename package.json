@@ -1,6 +1,6 @@
 {
   "name": "opentop",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Self-hosted AI agent backend powered by GitHub Copilot SDK",
   "type": "module",
   "bin": {
