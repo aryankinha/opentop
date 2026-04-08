@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { AppProvider, useApp } from '@/context/AppContext'
 import Sidebar from '@/components/Sidebar'
 import ChatView from '@/components/ChatView'
@@ -30,6 +30,32 @@ function getPreferredModel() {
   return localStorage.getItem('selectedModel') || 'claude-sonnet-4.5'
 }
 
+function getInstallHelpMessage(platform) {
+  if (platform === 'iOS') {
+    return [
+      'Install on iPhone/iPad:',
+      '1. Open this site in Safari',
+      '2. Tap Share',
+      '3. Tap "Add to Home Screen"',
+      '4. Tap Add',
+    ].join('\n')
+  }
+
+  if (platform === 'Android') {
+    return [
+      'Install on Android:',
+      '1. Open browser menu (three dots)',
+      '2. Tap "Install app" or "Add to Home screen"',
+      '3. Confirm install',
+    ].join('\n')
+  }
+
+  return [
+    'Install this app from your browser menu:',
+    'Choose "Install app" or "Add to Home screen".',
+  ].join('\n')
+}
+
 function AppContent() {
   const {
     serverUrl,
@@ -57,12 +83,22 @@ function AppContent() {
   const { 
     showPrompt: showPWAPrompt, 
     canInstall: canPWAInstall,
+    platform: pwaPlatform,
     installSuccess: pwaInstallSuccess,
     install: installPWA, 
     dismiss: dismissPWA, 
     triggerShow: triggerPWAPrompt, 
     isInstalled: isPWAInstalled 
   } = usePWAInstall()
+
+  const handleInstallPWAFromNewChat = useCallback(async () => {
+    if (canPWAInstall) {
+      await installPWA()
+      return
+    }
+
+    window.alert(getInstallHelpMessage(pwaPlatform))
+  }, [canPWAInstall, installPWA, pwaPlatform])
 
   // Auto-fill PIN from URL parameter (?pin=123456)
   useEffect(() => {
@@ -207,7 +243,19 @@ function AppContent() {
   }
 
   if (!isConnected) {
-    return <ConnectScreen onConnect={checkConnection} />
+    return (
+      <>
+        <ConnectScreen onConnect={checkConnection} />
+        <PWAInstallPrompt
+          showPrompt={showPWAPrompt}
+          canInstall={canPWAInstall}
+          platform={pwaPlatform}
+          installSuccess={pwaInstallSuccess}
+          onInstall={installPWA}
+          onDismiss={dismissPWA}
+        />
+      </>
+    )
   }
 
   const onOpenSidebar = () => setSidebarOpen(true)
@@ -258,6 +306,8 @@ function AppContent() {
             projects={projects}
             activeProject={activeProject}
             serverUrl={serverUrl}
+            showInstallButton={isMobile && !isPWAInstalled}
+            onInstallPWA={handleInstallPWAFromNewChat}
           />
         )}
       </main>
@@ -273,8 +323,9 @@ function AppContent() {
       
       {/* PWA Install Notification */}
       <PWAInstallPrompt 
-        showPrompt={showPWAPrompt}
+        showPrompt={showPWAPrompt && !activeSessionId}
         canInstall={canPWAInstall}
+        platform={pwaPlatform}
         installSuccess={pwaInstallSuccess}
         onInstall={installPWA}
         onDismiss={dismissPWA}

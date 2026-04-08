@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { isStandalone } from '@/utils/deviceDetection'
+import { getPlatformName, isStandalone } from '@/utils/deviceDetection'
 
 const PWA_INSTALLED_KEY = 'pwa-installed'
 const AUTO_DISMISS_MS = 25000 // 25 seconds
@@ -16,6 +16,8 @@ export function usePWAInstall() {
   const [showPrompt, setShowPrompt] = useState(false)
   const [installSuccess, setInstallSuccess] = useState(false)
   const dismissTimerRef = useRef(null)
+  const hasAutoShownRef = useRef(false)
+  const platform = getPlatformName()
   
   // Check if already installed
   const isInstalled = localStorage.getItem(PWA_INSTALLED_KEY) === 'true' || isStandalone()
@@ -80,6 +82,14 @@ export function usePWAInstall() {
       }
     }
   }, [showPrompt])
+
+  // Auto-show once when the user visits the site (if not already installed)
+  useEffect(() => {
+    if (isInstalled || hasAutoShownRef.current) return
+
+    hasAutoShownRef.current = true
+    setShowPrompt(true)
+  }, [isInstalled])
   
   /**
    * Triggers the native install prompt (Android/Chrome only)
@@ -97,7 +107,6 @@ export function usePWAInstall() {
       console.log(`User response to install prompt: ${outcome}`)
       
       if (outcome === 'accepted') {
-        localStorage.setItem(PWA_INSTALLED_KEY, 'true')
         setShowPrompt(false)
         setDeferredPrompt(null)
         return true
@@ -124,16 +133,17 @@ export function usePWAInstall() {
    * Shows the notification (call this when new chat is created)
    */
   const triggerShow = useCallback(() => {
-    // Only show if not installed and not already showing
-    if (!isInstalled && !showPrompt) {
+    // Only show if not installed
+    if (!isInstalled) {
       setShowPrompt(true)
     }
-  }, [isInstalled, showPrompt])
+  }, [isInstalled])
   
   return {
     showPrompt,
     canInstall: !!deferredPrompt,
     isInstalled,
+    platform,
     installSuccess,
     install,
     dismiss,

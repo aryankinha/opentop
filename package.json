@@ -10,7 +10,7 @@
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
     "cli": "node bin/opentop.js",
-    "build:web": "cd web && npm run build -- --outDir ../src/public",
+    "build:web": "cd web && npm run build -- --outDir ../src/public --emptyOutDir",
     "dev:web": "cd web && npm run dev",
     "build": "npm run build:web",
     "postinstall": "echo 'OpenTop installed. Run: opentop doctor'"

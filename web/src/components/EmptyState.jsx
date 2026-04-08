@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { useApp } from '@/context/AppContext'
 import ChatInput from './ChatInput'
 
-export default function EmptyState({ onOpenSidebar, onNewChat, activeProject = null }) {
+export default function EmptyState({ onOpenSidebar, onNewChat, activeProject = null, showInstallButton = false, onInstallPWA }) {
   const { sendMessage, isSending } = useApp()
   const [input, setInput] = useState('')
 
@@ -52,6 +52,15 @@ export default function EmptyState({ onOpenSidebar, onNewChat, activeProject = n
             </div>
           )}
         </div>
+
+        {showInstallButton && (
+          <button
+            onClick={onInstallPWA}
+            className="md:hidden mb-4 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium transition-colors"
+          >
+            Install OpenTop App
+          </button>
+        )}
 
         <ChatInput 
           input={input} 

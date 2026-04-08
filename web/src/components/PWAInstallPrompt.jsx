@@ -9,7 +9,33 @@ import { X, Download, CheckCircle } from 'lucide-react'
  * - Matches dark theme
  * - Shows success message after installation
  */
-export function PWAInstallPrompt({ showPrompt, canInstall, installSuccess, onInstall, onDismiss }) {
+function getInstallHelpMessage(platform) {
+  if (platform === 'iOS') {
+    return [
+      'Install on iPhone/iPad:',
+      '1. Open this site in Safari',
+      '2. Tap Share',
+      '3. Tap "Add to Home Screen"',
+      '4. Tap Add',
+    ].join('\n')
+  }
+
+  if (platform === 'Android') {
+    return [
+      'Install on Android:',
+      '1. Open browser menu (three dots)',
+      '2. Tap "Install app" or "Add to Home screen"',
+      '3. Confirm install',
+    ].join('\n')
+  }
+
+  return [
+    'Install this app from your browser menu:',
+    'Choose "Install app" or "Add to Home screen".',
+  ].join('\n')
+}
+
+export function PWAInstallPrompt({ showPrompt, canInstall, platform, installSuccess, onInstall, onDismiss }) {
   // Show success notification
   if (installSuccess) {
     return (
@@ -33,9 +59,10 @@ export function PWAInstallPrompt({ showPrompt, canInstall, installSuccess, onIns
   const handleInstall = async () => {
     if (canInstall && onInstall) {
       await onInstall()
-    } else if (onDismiss) {
-      onDismiss()
+      return
     }
+
+    window.alert(getInstallHelpMessage(platform))
   }
   
   return (
@@ -49,7 +76,7 @@ export function PWAInstallPrompt({ showPrompt, canInstall, installSuccess, onIns
         {/* Text */}
         <div className="flex-1 min-w-0">
           <p className="text-sm text-zinc-200 font-medium truncate">
-            Install OpenTop for a better experience
+            {canInstall ? 'Install OpenTop for a better experience' : 'Add OpenTop to your home screen'}
           </p>
         </div>
         
@@ -58,7 +85,7 @@ export function PWAInstallPrompt({ showPrompt, canInstall, installSuccess, onIns
           onClick={handleInstall}
           className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg transition-colors flex-shrink-0"
         >
-          Install
+          {canInstall ? 'Install' : 'How to Install'}
         </button>
         
         {/* Close Button */}
