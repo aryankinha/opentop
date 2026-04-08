@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { AppProvider, useApp } from '@/context/AppContext'
 import Sidebar from '@/components/Sidebar'
 import ChatView from '@/components/ChatView'
@@ -7,6 +7,7 @@ import EmptyState from '@/components/EmptyState'
 
 import PermissionModal from '@/components/PermissionModal'
 import { PWAInstallPrompt } from '@/components/PWAInstallPrompt'
+import { usePWAInstall } from '@/hooks/usePWAInstall'
 import { api } from '@/lib/api'
 
 const PROJECT_CHAT_MAP_KEY = 'projectChatSessionMap'
@@ -51,6 +52,16 @@ function AppContent() {
   const [projects, setProjects] = useState([])
   const [activeProject, setActiveProject] = useState(null)
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
+  
+  // PWA install notification
+  const { 
+    showPrompt: showPWAPrompt, 
+    canInstall: canPWAInstall, 
+    install: installPWA, 
+    dismiss: dismissPWA, 
+    triggerShow: triggerPWAPrompt, 
+    isInstalled: isPWAInstalled 
+  } = usePWAInstall()
 
   // Auto-fill PIN from URL parameter (?pin=123456)
   useEffect(() => {
@@ -141,6 +152,11 @@ function AppContent() {
     localStorage.removeItem('activeProjectPath')
     selectSession(null)
     if (isMobile) setSidebarOpen(false)
+    
+    // Show PWA install prompt on new chat (only in web mode)
+    if (!isPWAInstalled) {
+      triggerPWAPrompt()
+    }
   }
 
   const handleProjectSelect = async (project) => {
@@ -254,8 +270,13 @@ function AppContent() {
          />
       )}
       
-      {/* PWA Install Prompt */}
-      <PWAInstallPrompt />
+      {/* PWA Install Notification */}
+      <PWAInstallPrompt 
+        showPrompt={showPWAPrompt}
+        canInstall={canPWAInstall}
+        onInstall={installPWA}
+        onDismiss={dismissPWA}
+      />
     </div>
   )
 }
