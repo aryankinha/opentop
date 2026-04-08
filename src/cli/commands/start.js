@@ -22,6 +22,9 @@ const CONFIG_DIR = join(homedir(), '.opentop');
 const RUNTIME_DIR = join(CONFIG_DIR, 'runtime');
 const VERSION = '0.1.0';
 
+// Preferred port (predictable for development)
+const PREFERRED_PORT = 18790;
+
 // Port range to auto-select from (high ports to avoid conflicts)
 const PORT_RANGE_START = 15000;
 const PORT_RANGE_END = 65000;
@@ -45,25 +48,29 @@ function isPortAvailable(port) {
 }
 
 /**
- * Finds an available port in the specified range.
- * Uses random selection for speed, falls back to sequential scan.
- * @param {number} start - Start of port range
- * @param {number} end - End of port range
+ * Finds an available port, trying preferred port first.
+ * Then uses random selection for speed, falls back to sequential scan.
+ * @param {number|null} preferredPort - Preferred port to try first
  * @returns {Promise<number|null>} Available port or null if none found
  */
-async function findAvailablePort(start = PORT_RANGE_START, end = PORT_RANGE_END) {
+async function findAvailablePort(preferredPort = PREFERRED_PORT) {
+  // Try preferred port first
+  if (preferredPort && await isPortAvailable(preferredPort)) {
+    return preferredPort;
+  }
+  
   const { randomInt } = await import('node:crypto');
   
-  // Try random ports first (fast, no collisions)
+  // Try random high ports (fast, no collisions)
   for (let i = 0; i < MAX_PORT_ATTEMPTS; i++) {
-    const port = randomInt(start, end + 1);
+    const port = randomInt(PORT_RANGE_START, PORT_RANGE_END + 1);
     if (await isPortAvailable(port)) {
       return port;
     }
   }
   
   // Fallback: sequential scan (slower but guaranteed if any port is free)
-  for (let port = start; port <= end; port++) {
+  for (let port = PORT_RANGE_START; port <= PORT_RANGE_END; port++) {
     if (await isPortAvailable(port)) {
       return port;
     }

@@ -39,6 +39,7 @@ function AppContent() {
     createSession,
     selectSession,
     setServerUrl,
+    setPairingToken,
     checkConnection,
     permissionRequests,
     approvePermission,
@@ -49,6 +50,20 @@ function AppContent() {
   const [projects, setProjects] = useState([])
   const [activeProject, setActiveProject] = useState(null)
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
+
+  // Auto-fill PIN from URL parameter (?pin=123456)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const pinFromUrl = params.get('pin')
+    
+    if (pinFromUrl && /^\d{6}$/.test(pinFromUrl)) {
+      // Valid 6-digit PIN found in URL
+      console.log('Auto-filling PIN from URL')
+      setPairingToken(pinFromUrl)
+      // Trigger connection check
+      setTimeout(() => checkConnection(), 100)
+    }
+  }, [setPairingToken, checkConnection])
 
   const fetchProjects = useCallback(async () => {
     if (!isConnected) return

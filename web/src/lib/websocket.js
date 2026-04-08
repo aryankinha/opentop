@@ -1,7 +1,17 @@
 // WebSocket client for OpenTop backend
 // Handles real-time permission requests and connection status
 
-const DEFAULT_WS_URL = 'ws://localhost:3000'
+// Dynamic WebSocket URL: use current origin in production, localhost for dev
+function getDefaultWebSocketUrl() {
+  // If we're on Vite dev server (port 5173), connect to backend on 18790
+  if (window.location.origin === 'http://localhost:5173') {
+    return 'ws://localhost:18790'
+  }
+  // Otherwise, convert current origin to WebSocket protocol
+  return window.location.origin.replace(/^http/, 'ws')
+}
+
+const DEFAULT_WS_URL = getDefaultWebSocketUrl()
 
 class WebSocketClient {
   constructor() {

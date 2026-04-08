@@ -1,7 +1,17 @@
 // API client for OpenTop backend
 // Handles all REST API calls to the server
 
-const DEFAULT_SERVER_URL = 'http://localhost:3000'
+// Dynamic server URL: use current origin in production, localhost for dev
+function getDefaultServerUrl() {
+  // If we're on Vite dev server (port 5173), connect to backend on 18790
+  if (window.location.origin === 'http://localhost:5173') {
+    return 'http://localhost:18790'
+  }
+  // Otherwise, use same origin as the page (tunnel URL or deployed URL)
+  return window.location.origin
+}
+
+const DEFAULT_SERVER_URL = getDefaultServerUrl()
 
 class ApiClient {
   constructor(serverUrl = DEFAULT_SERVER_URL) {

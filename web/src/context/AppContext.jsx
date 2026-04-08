@@ -2,10 +2,20 @@ import { createContext, useContext, useReducer, useEffect, useCallback } from 'r
 import { api } from '@/lib/api'
 import { ws } from '@/lib/websocket'
 
+// Get default server URL dynamically
+function getDefaultServerUrl() {
+  // If we're on Vite dev server (port 5173), connect to backend on 18790
+  if (window.location.origin === 'http://localhost:5173') {
+    return 'http://localhost:18790'
+  }
+  // Otherwise, use same origin as the page (tunnel URL or deployed URL)
+  return window.location.origin
+}
+
 // Initial state
 const initialState = {
   // Connection
-  serverUrl: localStorage.getItem('serverUrl') || 'http://localhost:3000',
+  serverUrl: localStorage.getItem('serverUrl') || getDefaultServerUrl(),
   pairingToken: localStorage.getItem('pairingToken') || '',
   isConnected: false,
   isConnecting: false,

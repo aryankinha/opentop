@@ -58,9 +58,16 @@ function parseQRData(qrText) {
 export default function ConnectScreen({ onConnect }) {
   const { setServerUrl, setPairingToken, connectionError, isConnecting } = useApp()
   
+  // Get dynamic server URL (same as App.jsx auto-fill logic)
+  const getServerUrl = () => {
+    if (window.location.origin === 'http://localhost:5173') {
+      return 'http://localhost:18790'
+    }
+    return window.location.origin
+  }
+  
   // Connection state
   const [mode, setMode] = useState('home') // home | scan | manual | connecting | error
-  const [url, setUrl] = useState('')
   const [pin, setPin] = useState('')
   const [error, setError] = useState('')
   const [isReconnecting, setIsReconnecting] = useState(false)
@@ -70,7 +77,6 @@ export default function ConnectScreen({ onConnect }) {
     const saved = loadConnection()
     if (saved?.url && saved?.pin) {
       // Try auto-reconnect
-      setUrl(saved.url)
       setPin(saved.pin)
       setIsReconnecting(true)
       handleConnectWithCredentials(saved.url, saved.pin)
@@ -100,17 +106,22 @@ export default function ConnectScreen({ onConnect }) {
   }
 
   const handleManualConnect = () => {
-    if (!url.trim() || !pin.trim()) {
-      setError('Please enter both URL and PIN')
+    if (!pin.trim()) {
+      setError('Please enter your 6-digit PIN')
       return
     }
-    handleConnectWithCredentials(url.trim(), pin.trim())
+    if (pin.trim().length !== 6) {
+      setError('PIN must be exactly 6 digits')
+      return
+    }
+    // Use current origin as server URL
+    const serverUrl = getServerUrl()
+    handleConnectWithCredentials(serverUrl, pin.trim())
   }
 
   const handleQRScan = (qrText) => {
     const parsed = parseQRData(qrText)
     if (parsed) {
-      setUrl(parsed.url)
       setPin(parsed.pin)
       handleConnectWithCredentials(parsed.url, parsed.pin)
     } else {
@@ -123,7 +134,6 @@ export default function ConnectScreen({ onConnect }) {
     clearConnection()
     setError('')
     setMode('home')
-    setUrl('')
     setPin('')
   }
 
@@ -190,8 +200,8 @@ export default function ConnectScreen({ onConnect }) {
                     <Keyboard className="w-6 h-6 text-zinc-400" />
                   </div>
                   <div className="flex-1 text-left">
-                    <p className="text-white font-medium">Enter Code Manually</p>
-                    <p className="text-zinc-500 text-sm">Type URL and PIN</p>
+                    <p className="text-white font-medium">Enter PIN</p>
+                    <p className="text-zinc-500 text-sm">6-digit pairing code</p>
                   </div>
                   <ArrowRight className="w-5 h-5 text-zinc-600 group-hover:text-zinc-400 transition-colors" />
                 </button>
@@ -200,13 +210,13 @@ export default function ConnectScreen({ onConnect }) {
               {/* Instructions */}
               <div className="mt-8 p-4 bg-zinc-900/50 rounded-xl border border-zinc-800/50">
                 <p className="text-sm text-zinc-400 text-center">
-                  Run <code className="bg-zinc-800 px-2 py-0.5 rounded text-amber-500">opentop start --tunnel</code> on your Mac to get started
+                  Run <code className="bg-zinc-800 px-2 py-0.5 rounded text-amber-500">opentop start</code> on your computer to get started
                 </p>
               </div>
             </motion.div>
           )}
 
-          {/* Manual Entry Form */}
+          {/* Manual Entry Form - PIN Only */}
           {mode === 'manual' && (
             <motion.div
               key="manual"
@@ -225,21 +235,8 @@ export default function ConnectScreen({ onConnect }) {
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-zinc-400 mb-2">
-                    Server URL
-                  </label>
-                  <input
-                    type="url"
-                    value={url}
-                    onChange={e => setUrl(e.target.value)}
-                    placeholder="https://xyz.trycloudflare.com"
-                    className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl text-white placeholder-zinc-500 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-zinc-400 mb-2">
-                    Pairing PIN
+                  <label className="block text-sm font-medium text-zinc-400 mb-2 text-center">
+                    Enter Your 6-Digit PIN
                   </label>
                   <input
                     type="text"
