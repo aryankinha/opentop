@@ -21,6 +21,13 @@ const initialState = {
   isConnecting: false,
   connectionError: null,
 
+  // User
+  user: {
+    displayName: null,
+    username: null,
+  },
+  userLoading: false,
+
   // Sessions
   sessions: [],
   currentSessionId: null, // Always start with no session (new chat)
@@ -46,6 +53,8 @@ const actions = {
   SET_CONNECTED: 'SET_CONNECTED',
   SET_CONNECTING: 'SET_CONNECTING',
   SET_CONNECTION_ERROR: 'SET_CONNECTION_ERROR',
+  SET_USER: 'SET_USER',
+  SET_USER_LOADING: 'SET_USER_LOADING',
   SET_SESSIONS: 'SET_SESSIONS',
   SET_SESSIONS_LOADING: 'SET_SESSIONS_LOADING',
   SET_CURRENT_SESSION: 'SET_CURRENT_SESSION',
@@ -83,6 +92,12 @@ function appReducer(state, action) {
 
     case actions.SET_CONNECTION_ERROR:
       return { ...state, connectionError: action.payload, isConnecting: false, isConnected: false }
+
+    case actions.SET_USER:
+      return { ...state, user: action.payload, userLoading: false }
+
+    case actions.SET_USER_LOADING:
+      return { ...state, userLoading: action.payload }
 
     case actions.SET_SESSIONS:
       return { ...state, sessions: action.payload, sessionsLoading: false }
@@ -174,10 +189,11 @@ export function AppProvider({ children }) {
     checkConnection()
   }, [state.serverUrl])
 
-  // Load sessions when connected
+  // Load sessions and user data when connected
   useEffect(() => {
     if (state.isConnected) {
       loadSessions()
+      fetchUser()
     }
   }, [state.isConnected])
 
@@ -246,6 +262,40 @@ export function AppProvider({ children }) {
       dispatch({ type: actions.SET_SESSIONS, payload: [] })
     }
   }, [])
+
+  const fetchUser = useCallback(async () => {
+    dispatch({ type: actions.SET_USER_LOADING, payload: true })
+    try {
+      const userData = await api.getUser()
+      dispatch({ 
+        type: actions.SET_USER, 
+        payload: {
+          displayName: userData.displayName || userData.username || 'User',
+          username: userData.username,
+        }
+      })
+    } catch (error) {
+      console.error('Failed to fetch user:', error)
+      dispatch({ 
+        type: actions.SET_USER, 
+        payload: { displayName: 'User', username: null }
+      })
+    }
+  }, [])
+
+  const updateDisplayName = useCallback(async (newName) => {
+    try {
+      await api.updateUser({ displayName: newName })
+      dispatch({ 
+        type: actions.SET_USER, 
+        payload: { ...state.user, displayName: newName }
+      })
+      return true
+    } catch (error) {
+      console.error('Failed to update display name:', error)
+      throw error
+    }
+  }, [state.user])
 
   const createSession = useCallback(async (model = null, project = null) => {
     try {
@@ -391,6 +441,8 @@ export function AppProvider({ children }) {
     setServerUrl,
     setPairingToken,
     loadSessions,
+    fetchUser,
+    updateDisplayName,
     createSession,
     selectSession,
     deleteSession,

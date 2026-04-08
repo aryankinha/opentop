@@ -1,10 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react'
+import { useApp } from '@/context/AppContext'
 import SettingsModal from './SettingsModal'
 
 export default function ProfileMenu({ isExpanded = true, onCollapsedClick }) {
+  const { user } = useApp()
   const [menuOpen, setMenuOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const menuRef = useRef(null)
+
+  // Get display name and first letter for avatar
+  const displayName = user?.displayName || 'User'
+  const avatarLetter = displayName.charAt(0).toUpperCase()
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -32,10 +38,10 @@ export default function ProfileMenu({ isExpanded = true, onCollapsedClick }) {
           className={`flex items-center gap-3 transition-colors rounded hover:bg-zinc-800/50 p-1 w-full ${!isExpanded && 'justify-center border border-zinc-700/50 hover:bg-zinc-700 rounded-full w-8 h-8 p-0'}`}
         >
           <div className="w-8 h-8 rounded-full bg-zinc-700 text-zinc-300 flex items-center justify-center text-xs font-medium border border-zinc-600 flex-shrink-0">
-            A
+            {avatarLetter}
           </div>
           {isExpanded && (
-            <span className="text-sm text-zinc-300 font-medium">Aryan</span>
+            <span className="text-sm text-zinc-300 font-medium">{displayName}</span>
           )}
         </button>
 

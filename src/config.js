@@ -16,6 +16,7 @@ export { CONFIG_DIR, CONFIG_PATH };
 
 const DEFAULT_CONFIG = {
   deviceName: generateDeviceName(), // Auto-generated on first run
+  displayName: null, // User's display name (auto-generated if null)
   port: 3000,
   defaultModel: 'claude-sonnet-4.5',
   availableModels: [
@@ -151,6 +152,86 @@ export async function setDeviceName(name) {
   writeFileSync(CONFIG_PATH, JSON.stringify(current, null, 2), 'utf-8');
   logger.info('Device name updated', { name });
 }
+
+// ─── Display name helpers ────────────────────────────────────────────
+
+/**
+ * Gets the display name from config. If not set, generates one.
+ * @returns {string}
+ */
+export function getDisplayName() {
+  if (!config.displayName) {
+    // Auto-generate display name on first access
+    config.displayName = generateRandomDisplayName();
+    
+    // Persist to file
+    try {
+      const current = existsSync(CONFIG_PATH) 
+        ? JSON.parse(readFileSync(CONFIG_PATH, 'utf-8'))
+        : {};
+      
+      current.displayName = config.displayName;
+      writeFileSync(CONFIG_PATH, JSON.stringify(current, null, 2), 'utf-8');
+      logger.info('Display name auto-generated', { name: config.displayName });
+    } catch (error) {
+      logger.error('Failed to save auto-generated display name', { error: error.message });
+    }
+  }
+  
+  return config.displayName;
+}
+
+/**
+ * Sets a new display name in config.
+ * @param {string} name - New display name
+ */
+export function setDisplayName(name) {
+  if (typeof name !== 'string' || name.trim().length === 0) {
+    throw new Error('Display name must be a non-empty string');
+  }
+  
+  const trimmed = name.trim().slice(0, 50); // Max 50 characters
+  config.displayName = trimmed;
+  
+  // Write back to file
+  try {
+    const current = existsSync(CONFIG_PATH) 
+      ? JSON.parse(readFileSync(CONFIG_PATH, 'utf-8'))
+      : {};
+    
+    current.displayName = trimmed;
+    writeFileSync(CONFIG_PATH, JSON.stringify(current, null, 2), 'utf-8');
+    logger.info('Display name updated', { name: trimmed });
+  } catch (error) {
+    logger.error('Failed to save display name', { error: error.message });
+    throw error;
+  }
+}
+
+/**
+ * Generates a random display name (adjective-creature format)
+ * @returns {string}
+ */
+function generateRandomDisplayName() {
+  const adjectives = [
+    'swift', 'clever', 'brave', 'mighty', 'shadow', 'lightning', 
+    'mystic', 'golden', 'silver', 'crimson', 'azure', 'emerald',
+    'frost', 'storm', 'cosmic', 'stellar', 'lunar', 'solar',
+    'wild', 'noble', 'fierce', 'gentle', 'silent', 'roaring'
+  ];
+  
+  const creatures = [
+    'pikachu', 'charizard', 'bulbasaur', 'squirtle', 'eevee', 'snorlax',
+    'mewtwo', 'dragonite', 'gengar', 'lucario', 'garchomp', 'blaziken',
+    'fox', 'wolf', 'tiger', 'lion', 'bear', 'eagle', 'hawk', 'falcon',
+    'dragon', 'phoenix', 'griffin', 'unicorn', 'panther', 'raven', 'owl'
+  ];
+  
+  const adjective = adjectives[Math.floor(Math.random() * adjectives.length)];
+  const creature = creatures[Math.floor(Math.random() * creatures.length)];
+  return `${adjective}-${creature}`;
+}
+
 
 // ─── Ensure ~ is trusted by Copilot CLI ─────────────────────────────
 

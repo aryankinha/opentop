@@ -6,6 +6,7 @@ import ConnectScreen from '@/screens/ConnectScreen'
 import EmptyState from '@/components/EmptyState'
 
 import PermissionModal from '@/components/PermissionModal'
+import { PWAInstallPrompt } from '@/components/PWAInstallPrompt'
 import { api } from '@/lib/api'
 
 const PROJECT_CHAT_MAP_KEY = 'projectChatSessionMap'
@@ -252,6 +253,9 @@ function AppContent() {
            onDeny={() => denyPermission(permissionRequests[0].id)}
          />
       )}
+      
+      {/* PWA Install Prompt */}
+      <PWAInstallPrompt />
     </div>
   )
 }

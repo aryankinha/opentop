@@ -174,6 +174,13 @@ class ApiClient {
     return this.request('/user')
   }
 
+  async updateUser(updates) {
+    return this.request('/user', {
+      method: 'PATCH',
+      body: JSON.stringify(updates),
+    })
+  }
+
   // Projects
   async getProjects() {
     return this.request('/projects')

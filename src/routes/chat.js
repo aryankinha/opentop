@@ -731,8 +731,12 @@ Do not respond to this message - just acknowledge with "Ready."`;
   router.get('/user', async (_req, res) => {
     try {
       const { execSync } = await import('node:child_process');
+      const { getDisplayName } = await import('../config.js');
       
-      // Get system username
+      // Get display name (auto-generated if not set)
+      const displayName = getDisplayName();
+      
+      // Get system username (for context, not display)
       let username = null;
       try {
         username = execSync('whoami', { encoding: 'utf-8' }).trim();
@@ -762,17 +766,48 @@ Do not respond to this message - just acknowledge with "Ready."`;
       }
 
       res.json({
-        username,
+        displayName,
+        username, // Keep for backward compatibility
         projectContext,
-        greeting: username 
-          ? `Welcome, ${username}`
+        greeting: displayName 
+          ? `Welcome, ${displayName}`
           : 'What can I help you with today?',
       });
     } catch (err) {
       res.json({ 
+        displayName: null,
         username: null, 
         projectContext: null,
         greeting: 'What can I help you with today?',
+      });
+    }
+  });
+  
+  // ─── PATCH /user ────────────────────────────────────────────────
+  // Updates user display name
+  router.patch('/user', async (req, res) => {
+    try {
+      const { displayName } = req.body;
+      
+      if (!displayName || typeof displayName !== 'string') {
+        return res.status(400).json({ 
+          error: 'Display name is required and must be a string' 
+        });
+      }
+      
+      const { setDisplayName } = await import('../config.js');
+      setDisplayName(displayName);
+      
+      res.json({ 
+        success: true, 
+        displayName,
+        message: 'Display name updated successfully' 
+      });
+    } catch (err) {
+      logger.error('Failed to update display name', { error: err.message });
+      res.status(500).json({ 
+        error: 'Failed to update display name',
+        message: err.message 
       });
     }
   });
