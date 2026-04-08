@@ -255,6 +255,10 @@ export async function runSetup() {
         ...existingConfig.tunnel,
         ...config.tunnel,
       },
+      auth: {
+        ...existingConfig.auth,
+        ...config.auth,
+      },
     };
 
     writeFileSync(CONFIG_PATH, JSON.stringify(finalConfig, null, 2));
