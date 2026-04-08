@@ -1,4 +1,4 @@
-import { createContext, useContext, useReducer, useEffect, useCallback } from 'react'
+import { createContext, useContext, useReducer, useEffect, useCallback, useRef } from 'react'
 import { api } from '@/lib/api'
 import { ws } from '@/lib/websocket'
 
@@ -30,7 +30,7 @@ const initialState = {
 
   // Sessions
   sessions: [],
-  currentSessionId: null, // Always start with no session (new chat)
+  currentSessionId: localStorage.getItem('currentSessionId') || null,
   sessionsLoading: false,
 
   // Messages (for current session)
@@ -176,6 +176,7 @@ const AppContext = createContext(null)
 // Provider component
 export function AppProvider({ children }) {
   const [state, dispatch] = useReducer(appReducer, initialState)
+  const hasAutoRestoredSessionRef = useRef(false)
 
   // Initialize API URL and token
   useEffect(() => {
@@ -196,6 +197,31 @@ export function AppProvider({ children }) {
       fetchUser()
     }
   }, [state.isConnected])
+
+  // Restore the last or most recent session once sessions are available.
+  useEffect(() => {
+    if (!state.isConnected || state.sessionsLoading || hasAutoRestoredSessionRef.current) {
+      return
+    }
+
+    const sessionExists = state.currentSessionId
+      ? state.sessions.some((session) => session.sessionId === state.currentSessionId)
+      : false
+
+    if (state.currentSessionId && sessionExists) {
+      return
+    }
+
+    const latestSession = [...state.sessions]
+      .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))[0]
+
+    if (!latestSession?.sessionId) {
+      return
+    }
+
+    hasAutoRestoredSessionRef.current = true
+    dispatch({ type: actions.SET_CURRENT_SESSION, payload: latestSession.sessionId })
+  }, [state.isConnected, state.sessions, state.sessionsLoading, state.currentSessionId])
 
   // Load messages when session changes
   useEffect(() => {

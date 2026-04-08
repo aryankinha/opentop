@@ -7,7 +7,7 @@ import ChatInput from './ChatInput'
 import { AnimatePresence } from 'framer-motion'
 
 export default function ChatView({ sessionId, serverUrl, onBack, onOpenSidebar }) {
-  const { sessions, messages, sendMessage, isSending } = useApp()
+  const { sessions, messages, sendMessage, isSending, sendError } = useApp()
   const [input, setInput] = useState('')
   
   const messagesEndRef = useRef(null)
@@ -48,6 +48,13 @@ export default function ChatView({ sessionId, serverUrl, onBack, onOpenSidebar }
       <div className="flex-1 overflow-y-auto scrollbar-hide pt-4 md:pt-6" ref={messagesEndRef}>
         <div className="max-w-3xl mx-auto px-4 md:px-6 w-full flex flex-col min-h-full">
           <div className="flex-1 pb-8 pt-4">
+            {sendError && (
+              <div className="mb-4 rounded-lg border border-rose-900/60 bg-rose-950/50 px-3 py-2 text-sm text-rose-200">
+                <p className="font-medium">Message failed to send</p>
+                <p className="mt-1 text-rose-300/90">{sendError}</p>
+              </div>
+            )}
+
             {session?.project?.path && (
               <div className="mb-4 rounded-lg border border-zinc-800/80 bg-zinc-900/50 px-3 py-2">
                 <p className="text-zinc-300 text-sm font-medium truncate" title={session.project.name}>
@@ -84,7 +91,7 @@ export default function ChatView({ sessionId, serverUrl, onBack, onOpenSidebar }
       </div>
 
       {/* Input Area */}
-      <div className="pb-6 pt-2 px-4 md:px-6 bg-gradient-to-t from-[#18181b] via-[#18181b] to-transparent">
+      <div className="pb-6 pt-2 px-4 md:px-6 bg-linear-to-t from-[#18181b] via-[#18181b] to-transparent">
         <div className="max-w-3xl mx-auto">
           <ChatInput 
             input={input} 

@@ -3,7 +3,7 @@ import { useApp } from '@/context/AppContext'
 import ChatInput from './ChatInput'
 
 export default function EmptyState({ onOpenSidebar, onNewChat, activeProject = null, showInstallButton = false, onInstallPWA }) {
-  const { sendMessage, isSending } = useApp()
+  const { sendMessage, isSending, sendError } = useApp()
   const [input, setInput] = useState('')
 
   const handleSend = async (text, model) => {
@@ -41,6 +41,12 @@ export default function EmptyState({ onOpenSidebar, onNewChat, activeProject = n
           <p className="text-zinc-400 text-center max-w-sm px-4">
             How can I help you today?
           </p>
+          {sendError && (
+            <div className="mt-4 max-w-lg w-full rounded-lg border border-rose-900/60 bg-rose-950/50 px-3 py-2 text-sm text-rose-200 text-left">
+              <p className="font-medium">Message failed to send</p>
+              <p className="mt-1 text-rose-300/90">{sendError}</p>
+            </div>
+          )}
           {activeProject?.path && (
             <div className="mt-3 px-3 py-2 rounded-lg border border-zinc-800/80 bg-zinc-900/50 max-w-lg w-full">
               <p className="text-zinc-300 text-xs font-medium truncate" title={activeProject.name}>
