@@ -43,7 +43,9 @@ const DEFAULT_CONFIG = {
   },
   // Auth configuration  
   auth: {
-    cacheToken: true,     // Cache token in memory at startup
+    cacheToken: true,           // Cache token in memory at startup
+    cacheTokenLocally: true,    // Cache token in config file (avoids keychain prompts)
+    cachedToken: null,          // The locally cached GitHub token
   },
 };
 

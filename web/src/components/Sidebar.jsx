@@ -21,7 +21,7 @@ export default function Sidebar({
   const [customPath, setCustomPath] = useState('')
   const [isAddingProject, setIsAddingProject] = useState(false)
   const [projectError, setProjectError] = useState('')
-  const [chatScope, setChatScope] = useState('project')
+  const [chatScope, setChatScope] = useState('all')
   const expanded = isMobile || isExpanded
 
   const allSessions = useMemo(() => {
@@ -190,16 +190,16 @@ export default function Sidebar({
         <div className="px-3 pt-2 space-y-3">
           <div className="px-2 flex items-center gap-1.5">
             <button
-              onClick={() => setChatScope('project')}
-              className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-colors ${chatScope === 'project' ? 'bg-zinc-700/70 text-zinc-100' : 'text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200'}`}
-            >
-              Project chats
-            </button>
-            <button
               onClick={() => setChatScope('all')}
               className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-colors ${chatScope === 'all' ? 'bg-zinc-700/70 text-zinc-100' : 'text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200'}`}
             >
               All chats
+            </button>
+            <button
+              onClick={() => setChatScope('project')}
+              className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-colors ${chatScope === 'project' ? 'bg-zinc-700/70 text-zinc-100' : 'text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200'}`}
+            >
+              Project chats
             </button>
           </div>
 

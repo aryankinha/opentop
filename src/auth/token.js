@@ -1,8 +1,9 @@
 // src/auth/token.js
 // Token caching and management.
 // Loads GitHub token ONCE at startup and caches in memory.
+// Supports local token caching to avoid repeated keychain prompts.
 
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, chmodSync, existsSync, mkdirSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
@@ -13,30 +14,108 @@ let cachedToken = null;
 /** @type {boolean} Whether token has been loaded */
 let tokenLoaded = false;
 
+/** @type {string} Source of the token (for debugging) */
+let tokenSource = 'unknown';
+
+const OPENTOP_CONFIG_DIR = join(homedir(), '.opentop');
+const OPENTOP_CONFIG_PATH = join(OPENTOP_CONFIG_DIR, 'config.json');
+
+/**
+ * Reads the OpenTop config file.
+ * @returns {object|null} The config object or null if not found/invalid
+ */
+function readOpenTopConfig() {
+  try {
+    if (existsSync(OPENTOP_CONFIG_PATH)) {
+      return JSON.parse(readFileSync(OPENTOP_CONFIG_PATH, 'utf8'));
+    }
+  } catch {
+    // Config doesn't exist or is invalid
+  }
+  return null;
+}
+
+/**
+ * Saves a token to local config cache.
+ * @param {string} token - The token to cache
+ */
+function saveTokenToLocalCache(token) {
+  try {
+    // Ensure config directory exists
+    if (!existsSync(OPENTOP_CONFIG_DIR)) {
+      mkdirSync(OPENTOP_CONFIG_DIR, { recursive: true });
+    }
+    
+    // Read existing config or create new
+    let config = {};
+    try {
+      if (existsSync(OPENTOP_CONFIG_PATH)) {
+        config = JSON.parse(readFileSync(OPENTOP_CONFIG_PATH, 'utf8'));
+      }
+    } catch {
+      // Start fresh
+    }
+    
+    // Update auth section
+    config.auth = config.auth || {};
+    config.auth.cachedToken = token;
+    config.auth.cacheTokenLocally = true;
+    
+    // Write back with restricted permissions
+    writeFileSync(OPENTOP_CONFIG_PATH, JSON.stringify(config, null, 2), 'utf8');
+    
+    // Set file permissions to user-only read/write (0600)
+    try {
+      chmodSync(OPENTOP_CONFIG_PATH, 0o600);
+    } catch {
+      // chmod might fail on some systems, continue anyway
+    }
+    
+    console.log('[Auth] Token cached locally to avoid future keychain prompts');
+  } catch (error) {
+    console.error('[Auth] Failed to cache token locally:', error.message);
+  }
+}
+
 /**
  * Discovers a stored GitHub token by checking multiple locations in priority order:
  *   1. COPILOT_GITHUB_TOKEN env var (highest priority)
  *   2. GH_TOKEN env var
  *   3. GITHUB_TOKEN env var
- *   4. ~/.copilot/config.json — logged_in_users[].token / oauth_token / access_token
- *   5. macOS Keychain — service "copilot-cli", account "<host>:<login>"
- *   6. ~/.config/github-copilot/hosts.json — github.com oauth_token
+ *   4. Local cache in ~/.opentop/config.json (NEW - avoids keychain)
+ *   5. ~/.copilot/config.json — logged_in_users[].token / oauth_token / access_token
+ *   6. macOS Keychain — service "copilot-cli", account "<host>:<login>"
+ *   7. ~/.config/github-copilot/hosts.json — github.com oauth_token
  *
  * @returns {string | null} The first token found, or null if none found.
  */
 function discoverToken() {
   // 1. Environment variables (highest priority)
   if (process.env.COPILOT_GITHUB_TOKEN) {
+    tokenSource = 'env:COPILOT_GITHUB_TOKEN';
     return process.env.COPILOT_GITHUB_TOKEN;
   }
   if (process.env.GH_TOKEN) {
+    tokenSource = 'env:GH_TOKEN';
     return process.env.GH_TOKEN;
   }
   if (process.env.GITHUB_TOKEN) {
+    tokenSource = 'env:GITHUB_TOKEN';
     return process.env.GITHUB_TOKEN;
   }
 
-  // 2. Try ~/.copilot/config.json for inline tokens
+  // 2. Check local token cache in ~/.opentop/config.json (NEW)
+  const opentopConfig = readOpenTopConfig();
+  if (opentopConfig?.auth?.cacheTokenLocally && opentopConfig?.auth?.cachedToken) {
+    tokenSource = 'local-cache';
+    console.log('[Auth] Using locally cached token (no keychain access needed)');
+    return opentopConfig.auth.cachedToken;
+  }
+
+  // Track if we should cache locally after finding a token
+  const shouldCacheLocally = opentopConfig?.auth?.cacheTokenLocally !== false;
+
+  // 3. Try ~/.copilot/config.json for inline tokens
   let copilotConfig = null;
   try {
     const configPath = join(homedir(), '.copilot', 'config.json');
@@ -44,19 +123,41 @@ function discoverToken() {
 
     const users = copilotConfig.logged_in_users || copilotConfig.users || [];
     for (const user of users) {
-      if (user.token) return user.token;
-      if (user.oauth_token) return user.oauth_token;
-      if (user.access_token) return user.access_token;
+      if (user.token) {
+        tokenSource = 'copilot-config:user.token';
+        if (shouldCacheLocally) saveTokenToLocalCache(user.token);
+        return user.token;
+      }
+      if (user.oauth_token) {
+        tokenSource = 'copilot-config:user.oauth_token';
+        if (shouldCacheLocally) saveTokenToLocalCache(user.oauth_token);
+        return user.oauth_token;
+      }
+      if (user.access_token) {
+        tokenSource = 'copilot-config:user.access_token';
+        if (shouldCacheLocally) saveTokenToLocalCache(user.access_token);
+        return user.access_token;
+      }
     }
     // Top-level token field
-    if (copilotConfig.token) return copilotConfig.token;
-    if (copilotConfig.oauth_token) return copilotConfig.oauth_token;
+    if (copilotConfig.token) {
+      tokenSource = 'copilot-config:token';
+      if (shouldCacheLocally) saveTokenToLocalCache(copilotConfig.token);
+      return copilotConfig.token;
+    }
+    if (copilotConfig.oauth_token) {
+      tokenSource = 'copilot-config:oauth_token';
+      if (shouldCacheLocally) saveTokenToLocalCache(copilotConfig.oauth_token);
+      return copilotConfig.oauth_token;
+    }
   } catch {
     // Config doesn't exist or is invalid
   }
 
-  // 3. macOS Keychain — the Copilot CLI stores tokens here
+  // 4. macOS Keychain — the Copilot CLI stores tokens here
   if (process.platform === 'darwin') {
+    console.log('[Auth] Checking macOS Keychain (may prompt for password)...');
+    
     const users = copilotConfig?.logged_in_users || copilotConfig?.users || [];
     const lastUser = copilotConfig?.last_logged_in_user;
     const candidates = [...users];
@@ -71,10 +172,13 @@ function discoverToken() {
       try {
         const token = execSync(
           `security find-generic-password -s "copilot-cli" -a "${account}" -w`,
-          { timeout: 5000, stdio: ['pipe', 'pipe', 'pipe'] }
+          { timeout: 30000, stdio: ['pipe', 'pipe', 'pipe'] }
         ).toString().trim();
 
         if (token) {
+          tokenSource = 'keychain:copilot-cli';
+          console.log('[Auth] Token retrieved from Keychain');
+          if (shouldCacheLocally) saveTokenToLocalCache(token);
           return token;
         }
       } catch {
@@ -86,10 +190,13 @@ function discoverToken() {
     try {
       const token = execSync(
         'security find-generic-password -s "copilot-cli" -w',
-        { timeout: 5000, stdio: ['pipe', 'pipe', 'pipe'] }
+        { timeout: 30000, stdio: ['pipe', 'pipe', 'pipe'] }
       ).toString().trim();
 
       if (token) {
+        tokenSource = 'keychain:copilot-cli-generic';
+        console.log('[Auth] Token retrieved from Keychain (generic)');
+        if (shouldCacheLocally) saveTokenToLocalCache(token);
         return token;
       }
     } catch {
@@ -97,7 +204,7 @@ function discoverToken() {
     }
   }
 
-  // 4. Try ~/.config/github-copilot/hosts.json
+  // 5. Try ~/.config/github-copilot/hosts.json
   try {
     const hostsPath = join(homedir(), '.config', 'github-copilot', 'hosts.json');
     const hosts = JSON.parse(readFileSync(hostsPath, 'utf8'));
@@ -107,18 +214,36 @@ function discoverToken() {
       hosts['https://github.com'] ||
       hosts['github.com:443'] ||
       {};
-    if (githubHost.oauth_token) return githubHost.oauth_token;
-    if (githubHost.token) return githubHost.token;
+    
+    if (githubHost.oauth_token) {
+      tokenSource = 'hosts.json:oauth_token';
+      if (shouldCacheLocally) saveTokenToLocalCache(githubHost.oauth_token);
+      return githubHost.oauth_token;
+    }
+    if (githubHost.token) {
+      tokenSource = 'hosts.json:token';
+      if (shouldCacheLocally) saveTokenToLocalCache(githubHost.token);
+      return githubHost.token;
+    }
 
     // Try iterating all hosts
     for (const [, data] of Object.entries(hosts)) {
-      if (data?.oauth_token) return data.oauth_token;
-      if (data?.token) return data.token;
+      if (data?.oauth_token) {
+        tokenSource = 'hosts.json:other.oauth_token';
+        if (shouldCacheLocally) saveTokenToLocalCache(data.oauth_token);
+        return data.oauth_token;
+      }
+      if (data?.token) {
+        tokenSource = 'hosts.json:other.token';
+        if (shouldCacheLocally) saveTokenToLocalCache(data.token);
+        return data.token;
+      }
     }
   } catch {
     // hosts.json doesn't exist or is invalid
   }
 
+  tokenSource = 'none';
   return null;
 }
 
@@ -160,60 +285,54 @@ export function hasToken() {
  * @returns {object} Token source info
  */
 export function getTokenSource() {
-  if (process.env.COPILOT_GITHUB_TOKEN) {
-    return { source: 'env', name: 'COPILOT_GITHUB_TOKEN' };
+  // Use the tracked source from discoverToken()
+  if (tokenSource.startsWith('env:')) {
+    return { source: 'env', name: tokenSource.replace('env:', '') };
   }
-  if (process.env.GH_TOKEN) {
-    return { source: 'env', name: 'GH_TOKEN' };
+  if (tokenSource === 'local-cache') {
+    return { source: 'local-cache', path: OPENTOP_CONFIG_PATH };
   }
-  if (process.env.GITHUB_TOKEN) {
-    return { source: 'env', name: 'GITHUB_TOKEN' };
+  if (tokenSource.startsWith('copilot-config:')) {
+    return { source: 'copilot-config', path: join(homedir(), '.copilot', 'config.json') };
   }
-
-  // Check if token came from keychain
-  if (process.platform === 'darwin' && cachedToken) {
-    try {
-      const configPath = join(homedir(), '.copilot', 'config.json');
-      const config = JSON.parse(readFileSync(configPath, 'utf8'));
-      const users = config.logged_in_users || config.users || [];
-
-      // Check if any user has inline token
-      for (const user of users) {
-        if (user.token || user.oauth_token || user.access_token) {
-          return { source: 'config', path: configPath };
-        }
-      }
-
-      // If we have a token but no inline token, it came from keychain
-      return { source: 'keychain', service: 'copilot-cli' };
-    } catch {
-      return { source: 'keychain', service: 'copilot-cli' };
-    }
+  if (tokenSource.startsWith('keychain:')) {
+    return { source: 'keychain', service: 'copilot-cli' };
   }
-
-  // Check config file
-  const configPath = join(homedir(), '.copilot', 'config.json');
-  try {
-    readFileSync(configPath, 'utf8');
-    return { source: 'config', path: configPath };
-  } catch {
-    // Try hosts.json
-    const hostsPath = join(homedir(), '.config', 'github-copilot', 'hosts.json');
-    try {
-      readFileSync(hostsPath, 'utf8');
-      return { source: 'hosts', path: hostsPath };
-    } catch {
-      return { source: 'unknown' };
-    }
+  if (tokenSource.startsWith('hosts.json:')) {
+    return { source: 'hosts.json', path: join(homedir(), '.config', 'github-copilot', 'hosts.json') };
   }
+  return { source: tokenSource || 'unknown' };
 }
 
 /**
  * Clears the cached token (useful for logout/reset).
+ * Also clears the local token cache file if present.
  */
 export function clearToken() {
   cachedToken = null;
   tokenLoaded = false;
+  tokenSource = 'unknown';
+  
+  // Also clear local cache
+  clearLocalTokenCache();
+}
+
+/**
+ * Clears only the local token cache (without clearing memory).
+ */
+export function clearLocalTokenCache() {
+  try {
+    if (existsSync(OPENTOP_CONFIG_PATH)) {
+      const config = JSON.parse(readFileSync(OPENTOP_CONFIG_PATH, 'utf8'));
+      if (config.auth?.cachedToken) {
+        delete config.auth.cachedToken;
+        writeFileSync(OPENTOP_CONFIG_PATH, JSON.stringify(config, null, 2), 'utf8');
+        console.log('[Auth] Local token cache cleared');
+      }
+    }
+  } catch (error) {
+    console.error('[Auth] Failed to clear local token cache:', error.message);
+  }
 }
 
 /**
@@ -232,5 +351,6 @@ export default {
   hasToken,
   getTokenSource,
   clearToken,
+  clearLocalTokenCache,
   getMaskedToken,
 };
