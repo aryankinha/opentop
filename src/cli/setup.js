@@ -3,7 +3,6 @@
 // Guides users through cloudflared install, auth, and tunnel mode selection.
 
 import readline from 'node:readline';
-import { execSync, spawn } from 'node:child_process';
 import { existsSync, writeFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
@@ -11,7 +10,7 @@ import { homedir } from 'node:os';
 import ui from './ui.js';
 import { isCloudflaredInstalled, getCloudflaredVersion } from '../tunnel/quick.js';
 import { isCloudflareLoggedIn, loginToCloudflare, createTunnel, routeDNS } from '../tunnel/named.js';
-import { hasToken } from '../auth/token.js';
+import { hasToken, authenticateWithDeviceFlow } from '../auth/token.js';
 
 const CONFIG_DIR = join(homedir(), '.opentop');
 const CONFIG_PATH = join(CONFIG_DIR, 'config.json');
@@ -63,19 +62,6 @@ export function shouldRunSetup() {
 }
 
 /**
- * Checks if Copilot CLI is installed.
- * @returns {boolean}
- */
-function isCopilotCliInstalled() {
-  try {
-    execSync('which copilot', { stdio: 'pipe' });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/**
  * Runs the interactive setup wizard.
  * @returns {Promise<{ success: boolean, config: object }>}
  */
@@ -95,6 +81,7 @@ export async function runSetup() {
     },
     auth: {
       cacheToken: true,
+      cacheTokenLocally: true,
     },
   };
 
@@ -130,39 +117,41 @@ export async function runSetup() {
     } else {
       console.log(ui.warning('Not authenticated with GitHub'));
 
-      if (isCopilotCliInstalled()) {
-        const answer = await ask(rl, `\n  ${ui.prompt('Run copilot login now? (Y/n):')} `);
-        if (answer.toLowerCase() !== 'n') {
-          console.log(ui.action('Opening GitHub login...'));
-          rl.close();
+      const answer = await ask(rl, `\n  ${ui.prompt('Run OpenTop GitHub auth now? (Y/n):')} `);
+      if (answer.toLowerCase() !== 'n') {
+        rl.close();
 
-          // Run copilot login interactively
-          const success = await new Promise((resolve) => {
-            const child = spawn('copilot', ['login'], { stdio: 'inherit' });
-            child.on('exit', (code) => resolve(code === 0));
-            child.on('error', () => resolve(false));
+        try {
+          await authenticateWithDeviceFlow({
+            onUserCode: ({ verificationUri, verificationUriComplete, userCode }) => {
+              const targetUrl = verificationUriComplete || verificationUri;
+              console.log(ui.action('Authorize OpenTop in your browser'));
+              console.log('');
+              console.log(`  1. Open: ${ui.colors.highlight(targetUrl)}`);
+              if (!verificationUriComplete) {
+                console.log(`  2. Enter code: ${ui.colors.highlight(userCode)}`);
+              }
+              console.log('');
+              console.log(ui.info('Waiting for authorization...'));
+            },
+            onStatus: (status) => {
+              if (status === 'slow_down') {
+                console.log(ui.warning('GitHub requested slower polling; continuing...'));
+              }
+            },
           });
 
-          if (!success) {
-            console.log(ui.error('Login failed or was cancelled'));
-            return { success: false, config };
-          }
-
           console.log(ui.success('Authentication successful!'));
-          return runSetup(); // Restart setup after login
+          return runSetup(); // Restart setup after auth
+        } catch (err) {
+          console.log(ui.error(`Authentication failed: ${err.message}`));
+          return { success: false, config };
         }
-      } else {
-        console.log(ui.error('Copilot CLI not installed'));
-        console.log('');
-        console.log('  Install it with:');
-        console.log(ui.command('npm install -g @github/copilot'));
-        console.log('');
-        console.log('  Then run:');
-        console.log(ui.command('copilot login'));
-        console.log('');
-        rl.close();
-        return { success: false, config };
       }
+
+      console.log(ui.warning('Authentication is required to continue setup.'));
+      rl.close();
+      return { success: false, config };
     }
 
     // ─── Step 4: Tunnel Mode Selection ─────────────────────────────────

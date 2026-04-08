@@ -256,7 +256,7 @@ async function startForeground(port, flags) {
     console.log('');
     console.log(ui.error('Not authenticated with GitHub'));
     console.log('');
-    console.log(`  Run: ${ui.colors.command('copilot login')}`);
+    console.log(`  Run: ${ui.colors.command('opentop auth')}`);
     console.log(`  Then: ${ui.colors.command('opentop')}`);
     console.log('');
     process.exit(1);

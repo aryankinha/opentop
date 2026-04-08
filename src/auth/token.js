@@ -1,12 +1,12 @@
 // src/auth/token.js
 // Token caching and management.
 // Loads GitHub token ONCE at startup and caches in memory.
-// Supports local token caching to avoid repeated keychain prompts.
+// Supports local token caching to avoid repeated auth prompts.
 
 import { readFileSync, writeFileSync, chmodSync, existsSync, mkdirSync } from 'node:fs';
-import { execSync } from 'node:child_process';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { runDeviceAuth } from './deviceFlow.js';
 
 /** @type {string | null} Cached token */
 let cachedToken = null;
@@ -19,6 +19,26 @@ let tokenSource = 'unknown';
 
 const OPENTOP_CONFIG_DIR = join(homedir(), '.opentop');
 const OPENTOP_CONFIG_PATH = join(OPENTOP_CONFIG_DIR, 'config.json');
+
+/**
+ * Determines whether local token caching is enabled.
+ * Supports both legacy and current config keys.
+ * @param {object|null} config
+ * @returns {boolean}
+ */
+function isLocalCachingEnabled(config) {
+  const auth = config?.auth || {};
+
+  if (typeof auth.cacheTokenLocally === 'boolean') {
+    return auth.cacheTokenLocally;
+  }
+
+  if (typeof auth.cacheToken === 'boolean') {
+    return auth.cacheToken;
+  }
+
+  return true;
+}
 
 /**
  * Reads the OpenTop config file.
@@ -60,6 +80,7 @@ function saveTokenToLocalCache(token) {
     config.auth = config.auth || {};
     config.auth.cachedToken = token;
     config.auth.cacheTokenLocally = true;
+    config.auth.cacheToken = true;
     
     // Write back with restricted permissions
     writeFileSync(OPENTOP_CONFIG_PATH, JSON.stringify(config, null, 2), 'utf8');
@@ -71,7 +92,7 @@ function saveTokenToLocalCache(token) {
       // chmod might fail on some systems, continue anyway
     }
     
-    console.log('[Auth] Token cached locally to avoid future keychain prompts');
+    console.log('[Auth] Token cached locally to avoid repeated auth prompts');
   } catch (error) {
     console.error('[Auth] Failed to cache token locally:', error.message);
   }
@@ -82,10 +103,9 @@ function saveTokenToLocalCache(token) {
  *   1. COPILOT_GITHUB_TOKEN env var (highest priority)
  *   2. GH_TOKEN env var
  *   3. GITHUB_TOKEN env var
- *   4. Local cache in ~/.opentop/config.json (NEW - avoids keychain)
+ *   4. Local cache in ~/.opentop/config.json
  *   5. ~/.copilot/config.json — logged_in_users[].token / oauth_token / access_token
- *   6. macOS Keychain — service "copilot-cli", account "<host>:<login>"
- *   7. ~/.config/github-copilot/hosts.json — github.com oauth_token
+ *   6. ~/.config/github-copilot/hosts.json — github.com oauth_token
  *
  * @returns {string | null} The first token found, or null if none found.
  */
@@ -104,16 +124,18 @@ function discoverToken() {
     return process.env.GITHUB_TOKEN;
   }
 
-  // 2. Check local token cache in ~/.opentop/config.json (NEW)
+  // 2. Check local token cache in ~/.opentop/config.json
   const opentopConfig = readOpenTopConfig();
-  if (opentopConfig?.auth?.cacheTokenLocally && opentopConfig?.auth?.cachedToken) {
+  const cachingEnabled = isLocalCachingEnabled(opentopConfig);
+
+  if (cachingEnabled && opentopConfig?.auth?.cachedToken) {
     tokenSource = 'local-cache';
-    console.log('[Auth] Using locally cached token (no keychain access needed)');
+    console.log('[Auth] Using locally cached token');
     return opentopConfig.auth.cachedToken;
   }
 
   // Track if we should cache locally after finding a token
-  const shouldCacheLocally = opentopConfig?.auth?.cacheTokenLocally !== false;
+  const shouldCacheLocally = cachingEnabled;
 
   // 3. Try ~/.copilot/config.json for inline tokens
   let copilotConfig = null;
@@ -154,57 +176,7 @@ function discoverToken() {
     // Config doesn't exist or is invalid
   }
 
-  // 4. macOS Keychain — the Copilot CLI stores tokens here
-  if (process.platform === 'darwin') {
-    console.log('[Auth] Checking macOS Keychain (may prompt for password)...');
-    
-    const users = copilotConfig?.logged_in_users || copilotConfig?.users || [];
-    const lastUser = copilotConfig?.last_logged_in_user;
-    const candidates = [...users];
-    if (lastUser) candidates.push(lastUser);
-
-    for (const user of candidates) {
-      const host = user.host || 'https://github.com';
-      const login = user.login;
-      if (!login) continue;
-
-      const account = `${host}:${login}`;
-      try {
-        const token = execSync(
-          `security find-generic-password -s "copilot-cli" -a "${account}" -w`,
-          { timeout: 30000, stdio: ['pipe', 'pipe', 'pipe'] }
-        ).toString().trim();
-
-        if (token) {
-          tokenSource = 'keychain:copilot-cli';
-          console.log('[Auth] Token retrieved from Keychain');
-          if (shouldCacheLocally) saveTokenToLocalCache(token);
-          return token;
-        }
-      } catch {
-        // No keychain entry for this account
-      }
-    }
-
-    // Fallback: try without specific account (any copilot-cli entry)
-    try {
-      const token = execSync(
-        'security find-generic-password -s "copilot-cli" -w',
-        { timeout: 30000, stdio: ['pipe', 'pipe', 'pipe'] }
-      ).toString().trim();
-
-      if (token) {
-        tokenSource = 'keychain:copilot-cli-generic';
-        console.log('[Auth] Token retrieved from Keychain (generic)');
-        if (shouldCacheLocally) saveTokenToLocalCache(token);
-        return token;
-      }
-    } catch {
-      // No generic copilot-cli entry
-    }
-  }
-
-  // 5. Try ~/.config/github-copilot/hosts.json
+  // 4. Try ~/.config/github-copilot/hosts.json
   try {
     const hostsPath = join(homedir(), '.config', 'github-copilot', 'hosts.json');
     const hosts = JSON.parse(readFileSync(hostsPath, 'utf8'));
@@ -245,6 +217,36 @@ function discoverToken() {
 
   tokenSource = 'none';
   return null;
+}
+
+/**
+ * Stores a token in local cache and memory.
+ * @param {string} token
+ * @param {string} [source='manual']
+ * @returns {string}
+ */
+export function storeToken(token, source = 'manual') {
+  const normalized = typeof token === 'string' ? token.trim() : '';
+  if (!normalized) {
+    throw new Error('Token must be a non-empty string');
+  }
+
+  saveTokenToLocalCache(normalized);
+  cachedToken = normalized;
+  tokenLoaded = true;
+  tokenSource = source;
+
+  return normalized;
+}
+
+/**
+ * Runs GitHub OAuth device flow and stores the resulting token.
+ * @param {object} [options]
+ * @returns {Promise<string>}
+ */
+export async function authenticateWithDeviceFlow(options = {}) {
+  const token = await runDeviceAuth(options);
+  return storeToken(token, 'device-flow');
 }
 
 /**
@@ -292,11 +294,11 @@ export function getTokenSource() {
   if (tokenSource === 'local-cache') {
     return { source: 'local-cache', path: OPENTOP_CONFIG_PATH };
   }
+  if (tokenSource === 'device-flow') {
+    return { source: 'device-flow', path: OPENTOP_CONFIG_PATH };
+  }
   if (tokenSource.startsWith('copilot-config:')) {
     return { source: 'copilot-config', path: join(homedir(), '.copilot', 'config.json') };
-  }
-  if (tokenSource.startsWith('keychain:')) {
-    return { source: 'keychain', service: 'copilot-cli' };
   }
   if (tokenSource.startsWith('hosts.json:')) {
     return { source: 'hosts.json', path: join(homedir(), '.config', 'github-copilot', 'hosts.json') };
@@ -349,6 +351,8 @@ export default {
   loadToken,
   getToken,
   hasToken,
+  storeToken,
+  authenticateWithDeviceFlow,
   getTokenSource,
   clearToken,
   clearLocalTokenCache,

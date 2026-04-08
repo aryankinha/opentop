@@ -23,6 +23,8 @@ npm install -g opentop
    opentop auth
    ```
 
+   OpenTop uses GitHub OAuth Device Flow (browser + one-time code).
+
 3. **Start the server with public access:**
 
    ```bash
@@ -41,7 +43,7 @@ opentop stop               Stop the running server
 opentop status             Check server status, URL, sessions
 opentop doctor             Diagnose system requirements
 opentop setup              Interactive setup wizard
-opentop auth               Authenticate with GitHub Copilot
+opentop auth               Authenticate with GitHub (device flow)
 opentop config             Show current configuration
 opentop reset              Delete all config and stop processes
 opentop help               Show help
@@ -66,6 +68,10 @@ The PWA connects directly to your Mac — no cloud required.
 ## Configuration
 
 Config file: `~/.opentop/config.json`
+
+Auth note: `opentop auth` stores a cached GitHub token in this file under `auth.cachedToken`.
+OpenTop no longer relies on macOS Keychain access for authentication.
+If you publish or fork the package, you can override the GitHub OAuth client ID with `OPENTOP_GITHUB_CLIENT_ID`.
 
 ```json
 {

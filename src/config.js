@@ -44,10 +44,48 @@ const DEFAULT_CONFIG = {
   // Auth configuration  
   auth: {
     cacheToken: true,           // Cache token in memory at startup
-    cacheTokenLocally: true,    // Cache token in config file (avoids keychain prompts)
+    cacheTokenLocally: true,    // Cache token in config file (avoids repeated auth prompts)
     cachedToken: null,          // The locally cached GitHub token
   },
 };
+
+function createDefaultConfig() {
+  return {
+    ...DEFAULT_CONFIG,
+    availableModels: [...DEFAULT_CONFIG.availableModels],
+    trustedFolders: [...DEFAULT_CONFIG.trustedFolders],
+    autoApproveTools: [...DEFAULT_CONFIG.autoApproveTools],
+    requireApprovalTools: [...DEFAULT_CONFIG.requireApprovalTools],
+    tunnel: { ...DEFAULT_CONFIG.tunnel },
+    auth: { ...DEFAULT_CONFIG.auth },
+  };
+}
+
+function normalizeAuthConfig(authConfig = {}) {
+  const auth = { ...authConfig };
+
+  if (typeof auth.cacheTokenLocally !== 'boolean' && typeof auth.cacheToken === 'boolean') {
+    auth.cacheTokenLocally = auth.cacheToken;
+  }
+
+  if (typeof auth.cacheToken !== 'boolean' && typeof auth.cacheTokenLocally === 'boolean') {
+    auth.cacheToken = auth.cacheTokenLocally;
+  }
+
+  if (typeof auth.cacheTokenLocally !== 'boolean') {
+    auth.cacheTokenLocally = true;
+  }
+
+  if (typeof auth.cacheToken !== 'boolean') {
+    auth.cacheToken = auth.cacheTokenLocally;
+  }
+
+  if (typeof auth.cachedToken !== 'string' || auth.cachedToken.trim().length === 0) {
+    auth.cachedToken = null;
+  }
+
+  return auth;
+}
 
 function loadConfig() {
   // Ensure config directory exists
@@ -58,21 +96,34 @@ function loadConfig() {
 
   // If config file doesn't exist, write defaults
   if (!existsSync(CONFIG_PATH)) {
-    writeFileSync(CONFIG_PATH, JSON.stringify(DEFAULT_CONFIG, null, 2), 'utf-8');
+    const defaultConfig = createDefaultConfig();
+    writeFileSync(CONFIG_PATH, JSON.stringify(defaultConfig, null, 2), 'utf-8');
     logger.info('Created default config', { path: CONFIG_PATH });
-    return { ...DEFAULT_CONFIG };
+    return defaultConfig;
   }
 
   try {
     const raw = readFileSync(CONFIG_PATH, 'utf-8');
     const userConfig = JSON.parse(raw);
     // Merge with defaults so new keys are always present
-    const merged = { ...DEFAULT_CONFIG, ...userConfig };
+    const defaults = createDefaultConfig();
+    const merged = {
+      ...defaults,
+      ...userConfig,
+      tunnel: {
+        ...defaults.tunnel,
+        ...(userConfig.tunnel || {}),
+      },
+      auth: normalizeAuthConfig({
+        ...defaults.auth,
+        ...(userConfig.auth || {}),
+      }),
+    };
     logger.info('Loaded config', { path: CONFIG_PATH });
     return merged;
   } catch (err) {
     logger.error('Failed to parse config, using defaults', { error: err.message });
-    return { ...DEFAULT_CONFIG };
+    return createDefaultConfig();
   }
 }
 

@@ -5,7 +5,6 @@
 import { parseArgs } from 'node:util';
 import { join, dirname } from 'node:path';
 import { existsSync, readFileSync, rmSync, mkdirSync } from 'node:fs';
-import { execSync, spawn, spawnSync } from 'node:child_process';
 import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import readline from 'node:readline';
@@ -48,6 +47,7 @@ export function parseCliArgs(args) {
         'no-tunnel': { type: 'boolean', default: false },
         foreground: { type: 'boolean', default: false },
         force: { type: 'boolean', short: 'f', default: false },
+        'show-token': { type: 'boolean', default: false },
       },
       allowPositionals: true,
       strict: false,
@@ -199,10 +199,16 @@ async function cmdConfig(args) {
     const maxKeyLen = Math.max(...Object.keys(cfg).map((k) => k.length));
     for (const [key, value] of Object.entries(cfg)) {
       let displayValue;
-      if (typeof value === 'object') {
-        displayValue = JSON.stringify(value);
-      } else if (Array.isArray(value)) {
+      if (Array.isArray(value)) {
         displayValue = value.join(', ');
+      } else if (key === 'auth' && value && typeof value === 'object') {
+        const redactedAuth = { ...value };
+        if (typeof redactedAuth.cachedToken === 'string' && redactedAuth.cachedToken.length > 0) {
+          redactedAuth.cachedToken = `${redactedAuth.cachedToken.slice(0, 8)}...${redactedAuth.cachedToken.slice(-4)}`;
+        }
+        displayValue = JSON.stringify(redactedAuth);
+      } else if (value && typeof value === 'object') {
+        displayValue = JSON.stringify(value);
       } else {
         displayValue = String(value);
       }
@@ -244,26 +250,17 @@ async function cmdDoctor() {
     issues++;
   }
 
-  // 3. Check Copilot CLI
-  try {
-    execSync('which copilot', { stdio: 'pipe' });
-    console.log(ui.success('GitHub Copilot CLI'));
-  } catch {
-    console.log(ui.warning('GitHub Copilot CLI not found (optional)'));
-    console.log(`      Install: ${ui.colors.command('npm install -g @github/copilot')}`);
-  }
-
-  // 4. Check GitHub token
+  // 3. Check GitHub token
   const { hasToken, getTokenSource } = await import('../auth/token.js');
   if (hasToken()) {
     const source = getTokenSource();
     console.log(ui.success(`GitHub token found (${source.source})`));
   } else {
     console.log(ui.warning('No GitHub token found'));
-    console.log(`      Run: ${ui.colors.command('copilot login')}`);
+    console.log(`      Run: ${ui.colors.command('opentop auth')}`);
   }
 
-  // 5. Check default port
+  // 4. Check default port
   const defaultPort = 3000;
   if (await isPortAvailable(defaultPort)) {
     console.log(ui.success(`Port ${defaultPort} available`));
@@ -272,14 +269,14 @@ async function cmdDoctor() {
     console.log(`      Use: ${ui.colors.command('opentop --port 4000')}`);
   }
 
-  // 6. Check config directory
+  // 5. Check config directory
   if (existsSync(CONFIG_DIR)) {
     console.log(ui.success(`Config directory: ${CONFIG_DIR}`));
   } else {
     console.log(ui.info('Config directory will be created on first run'));
   }
 
-  // 7. Check config file integrity
+  // 6. Check config file integrity
   const configPath = join(CONFIG_DIR, 'config.json');
   if (existsSync(configPath)) {
     try {
@@ -292,7 +289,7 @@ async function cmdDoctor() {
     }
   }
 
-  // 8. Check for stale PID files
+  // 7. Check for stale PID files
   const pids = loadRuntimePids();
   if (pids) {
     if (!isProcessRunning(pids.serverPid)) {
@@ -310,53 +307,73 @@ async function cmdDoctor() {
   console.log('');
 }
 
-async function cmdAuth() {
+async function cmdAuth(flags = {}) {
   console.log('');
   console.log(ui.header('OpenTop — Authentication'));
   console.log('');
 
-  // Check if an env token is already set
-  if (process.env.COPILOT_GITHUB_TOKEN) {
-    console.log(ui.success('COPILOT_GITHUB_TOKEN is set in environment'));
-    console.log(ui.info('You can skip the login flow if this token is valid.'));
+  const force = flags.force || false;
+  const showToken = flags['show-token'] || false;
+
+  const {
+    hasToken,
+    getTokenSource,
+    getMaskedToken,
+    clearLocalTokenCache,
+    authenticateWithDeviceFlow,
+  } = await import('../auth/token.js');
+
+  if (hasToken() && !force) {
+    const source = getTokenSource();
+    console.log(ui.success(`GitHub token already available (${source.source})`));
+    console.log(`  ${ui.colors.muted('Token:')} ${getMaskedToken()}`);
+    console.log(`  ${ui.colors.muted('Re-authenticate:')} ${ui.colors.command('opentop auth --force')}`);
+    console.log('');
+    return;
+  }
+
+  if (force) {
+    clearLocalTokenCache();
+    console.log(ui.info('Existing local cached token cleared.'));
     console.log('');
   }
 
-  // Check if Copilot CLI exists
-  let copilotPath;
   try {
-    copilotPath = execSync('which copilot', { stdio: 'pipe' }).toString().trim();
-  } catch {
-    console.log(ui.error('Copilot CLI not found.'));
+    const token = await authenticateWithDeviceFlow({
+      onUserCode: ({ verificationUri, verificationUriComplete, userCode }) => {
+        const targetUrl = verificationUriComplete || verificationUri;
+        console.log(ui.action('Authorize OpenTop in your browser'));
+        console.log('');
+        console.log(`  1. Open: ${ui.colors.highlight(targetUrl)}`);
+        if (!verificationUriComplete) {
+          console.log(`  2. Enter code: ${ui.colors.highlight(userCode)}`);
+        }
+        console.log('');
+        console.log(ui.info('Waiting for authorization...'));
+      },
+      onStatus: (status) => {
+        if (status === 'slow_down') {
+          console.log(ui.warning('GitHub requested slower polling; continuing...'));
+        }
+      },
+    });
+
     console.log('');
-    console.log('  Install it with:');
-    console.log(ui.command('npm install -g @github/copilot'));
+    if (showToken) {
+      console.log(ui.info(`GitHub token: ${token}`));
+    } else {
+      console.log(ui.success(`Token saved: ${token.slice(0, 8)}...${token.slice(-4)}`));
+    }
+    console.log(ui.success('Authentication successful!'));
+    console.log(`  Run ${ui.colors.command('opentop')} to start the server.`);
     console.log('');
-    console.log('  Then run:');
-    console.log(ui.command('opentop auth'));
+  } catch (err) {
+    console.log('');
+    console.log(ui.error(`Authentication failed: ${err.message}`));
+    console.log(`  Retry: ${ui.colors.command('opentop auth --force')}`);
     console.log('');
     process.exit(1);
   }
-
-  console.log(ui.success(`Copilot CLI found: ${copilotPath}`));
-  console.log(ui.action('Starting interactive login...'));
-  console.log('');
-
-  // Run copilot login interactively
-  const child = spawn('copilot', ['login'], { stdio: 'inherit' });
-  child.on('exit', (code) => {
-    if (code === 0) {
-      console.log('');
-      console.log(ui.success('Authentication successful!'));
-      console.log(`    Run ${ui.colors.command('opentop')} to start the server.`);
-      console.log('');
-    }
-    process.exit(code ?? 0);
-  });
-  child.on('error', (err) => {
-    console.log(ui.error(`Failed to run copilot login: ${err.message}`));
-    process.exit(1);
-  });
 }
 
 function cmdHelp() {
@@ -385,7 +402,8 @@ function cmdHelp() {
     ${ui.colors.muted('--debug, -d')}         Enable debug logging (HTTP requests, auth)
     ${ui.colors.muted('--verbose, -v')}       Enable verbose logging
     ${ui.colors.muted('--model, -m <M>')}     Override default model
-    ${ui.colors.muted('--force, -f')}         Skip confirmations (reset)
+    ${ui.colors.muted('--force, -f')}         Force action (auth or reset)
+    ${ui.colors.muted('--show-token')}        Show full token output after auth
 
   ${ui.colors.bold('EXAMPLES')}
     ${ui.colors.command('opentop')}                    ${ui.colors.muted('# Start with tunnel')}
@@ -393,6 +411,7 @@ function cmdHelp() {
     ${ui.colors.command('opentop status')}             ${ui.colors.muted('# Check if running')}
     ${ui.colors.command('opentop stop')}               ${ui.colors.muted('# Stop server')}
     ${ui.colors.command('opentop doctor')}             ${ui.colors.muted('# Diagnose issues')}
+    ${ui.colors.command('opentop auth')}               ${ui.colors.muted('# Authenticate with GitHub device flow')}
     ${ui.colors.command('opentop reset --force')}      ${ui.colors.muted('# Full reset')}
 
   ${ui.colors.bold('CONFIG')}
@@ -445,7 +464,7 @@ export async function main(args = process.argv.slice(2)) {
     } else if (command === 'status') {
       await status({ port: flags.port });
     } else if (command === 'auth') {
-      await cmdAuth();
+      await cmdAuth(flags);
     } else if (command === 'config') {
       // Pass remaining args for subcommands
       await cmdConfig(args.slice(1));

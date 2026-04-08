@@ -60,6 +60,7 @@ async function main() {
     
     if (!hasToken()) {
       log('ERROR: Not authenticated with GitHub');
+      log('Run "opentop auth" to complete GitHub device authentication');
       process.exit(1);
     }
     
