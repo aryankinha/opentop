@@ -1,4 +1,4 @@
-import { X, Download } from 'lucide-react'
+import { X, Download, CheckCircle } from 'lucide-react'
 
 /**
  * PWA Install Notification Component
@@ -7,8 +7,25 @@ import { X, Download } from 'lucide-react'
  * - Download button + X close button
  * - Auto-dismisses after 25 seconds
  * - Matches dark theme
+ * - Shows success message after installation
  */
-export function PWAInstallPrompt({ showPrompt, canInstall, onInstall, onDismiss }) {
+export function PWAInstallPrompt({ showPrompt, canInstall, installSuccess, onInstall, onDismiss }) {
+  // Show success notification
+  if (installSuccess) {
+    return (
+      <div className="fixed top-0 left-0 right-0 z-50 p-3 animate-in slide-in-from-top duration-300">
+        <div className="max-w-xl mx-auto bg-emerald-900/90 border border-emerald-700 rounded-xl shadow-lg px-4 py-3 flex items-center gap-3">
+          <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center flex-shrink-0">
+            <CheckCircle className="w-4 h-4 text-white" />
+          </div>
+          <p className="text-sm text-emerald-100 font-medium flex-1">
+            OpenTop installed successfully! 🎉
+          </p>
+        </div>
+      </div>
+    )
+  }
+  
   if (!showPrompt) {
     return null
   }

@@ -9,10 +9,12 @@ const AUTO_DISMISS_MS = 25000 // 25 seconds
  * - Shows on demand (triggerShow)
  * - Auto-dismisses after 25 seconds
  * - Only works in web mode (not standalone PWA)
+ * - Tracks successful installations with appinstalled event
  */
 export function usePWAInstall() {
   const [deferredPrompt, setDeferredPrompt] = useState(null)
   const [showPrompt, setShowPrompt] = useState(false)
+  const [installSuccess, setInstallSuccess] = useState(false)
   const dismissTimerRef = useRef(null)
   
   // Check if already installed
@@ -22,17 +24,42 @@ export function usePWAInstall() {
     // Don't set up if already installed
     if (isInstalled) return
     
+    // Check and log service worker status
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.ready.then((registration) => {
+        console.log('[PWA] Service worker ready:', registration.scope)
+      }).catch((err) => {
+        console.error('[PWA] Service worker not ready:', err)
+      })
+    } else {
+      console.warn('[PWA] Service workers not supported')
+    }
+    
     // Listen for beforeinstallprompt event (Android/Chrome)
     const handleBeforeInstall = (e) => {
       e.preventDefault()
       setDeferredPrompt(e)
-      console.log('beforeinstallprompt event captured')
+      console.log('[PWA] beforeinstallprompt event captured')
+    }
+    
+    // Listen for successful installation
+    const handleAppInstalled = () => {
+      console.log('[PWA] App installed successfully!')
+      localStorage.setItem(PWA_INSTALLED_KEY, 'true')
+      setDeferredPrompt(null)
+      setShowPrompt(false)
+      setInstallSuccess(true)
+      
+      // Auto-hide success message after 5 seconds
+      setTimeout(() => setInstallSuccess(false), 5000)
     }
     
     window.addEventListener('beforeinstallprompt', handleBeforeInstall)
+    window.addEventListener('appinstalled', handleAppInstalled)
     
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstall)
+      window.removeEventListener('appinstalled', handleAppInstalled)
       if (dismissTimerRef.current) {
         clearTimeout(dismissTimerRef.current)
       }
@@ -107,6 +134,7 @@ export function usePWAInstall() {
     showPrompt,
     canInstall: !!deferredPrompt,
     isInstalled,
+    installSuccess,
     install,
     dismiss,
     triggerShow,

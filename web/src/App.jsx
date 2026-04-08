@@ -56,7 +56,8 @@ function AppContent() {
   // PWA install notification
   const { 
     showPrompt: showPWAPrompt, 
-    canInstall: canPWAInstall, 
+    canInstall: canPWAInstall,
+    installSuccess: pwaInstallSuccess,
     install: installPWA, 
     dismiss: dismissPWA, 
     triggerShow: triggerPWAPrompt, 
@@ -274,6 +275,7 @@ function AppContent() {
       <PWAInstallPrompt 
         showPrompt={showPWAPrompt}
         canInstall={canPWAInstall}
+        installSuccess={pwaInstallSuccess}
         onInstall={installPWA}
         onDismiss={dismissPWA}
       />
