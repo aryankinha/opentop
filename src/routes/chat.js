@@ -20,6 +20,7 @@ import {
 } from '../core/sessionManager.js';
 import {
   createAgentSession,
+  closeSession as closeCopilotSdkSession,
   sendMessage,
   summarizeMessages,
   getStoredGithubToken,
@@ -122,6 +123,7 @@ function upsertCustomProject(project) {
  */
 export function createChatRouter(wsClients) {
   const router = Router();
+  const activeTurns = new Map();
 
   // ─── POST /session ──────────────────────────────────────────────
   // Creates a new session. Optionally accepts a project.
@@ -154,6 +156,11 @@ export function createChatRouter(wsClients) {
 
       const sessionId = createSession(model, validatedProject);
       const session = getSession(sessionId);
+      logger.info('HTTP session created', {
+        sessionId,
+        project: session.project?.path || null,
+        model: session.model,
+      });
 
       res.status(201).json({
         sessionId: session.sessionId,
@@ -172,6 +179,10 @@ export function createChatRouter(wsClients) {
   router.get('/sessions', (_req, res, next) => {
     try {
       const sessions = getAllSessions();
+      logger.info('Sessions fetched', {
+        count: sessions.length,
+        sessionIds: sessions.map((session) => session.sessionId),
+      });
       res.json(sessions);
     } catch (err) {
       next(err);
@@ -245,7 +256,7 @@ export function createChatRouter(wsClients) {
   router.post('/session/:id/chat', async (req, res, next) => {
     try {
       const { id } = req.params;
-      const { message } = req.body || {};
+      const { message, model } = req.body || {};
 
       if (!message || typeof message !== 'string') {
         return res.status(400).json({ error: 'message is required and must be a string' });
@@ -260,8 +271,18 @@ export function createChatRouter(wsClients) {
         return res.status(410).json({ error: 'Session is closed' });
       }
 
+      if (activeTurns.has(id)) {
+        return res.status(409).json({ error: 'A response is already in progress for this session' });
+      }
+
       // 1. Add user message to history
       addMessage(id, 'user', message);
+
+      const turnAbortController = new AbortController();
+      activeTurns.set(id, {
+        startedAt: new Date().toISOString(),
+        abort: () => turnAbortController.abort(),
+      });
 
       // 2. Lazily create Copilot SDK session if it doesn't exist yet
       const isFirstCreate = !session.copilotSession;
@@ -319,12 +340,29 @@ Do not respond to this message - just acknowledge with "Ready."`;
       }
 
       // 3. Send message through Copilot SDK
-      logger.info('Sending message to Copilot', { sessionId: id, messageLength: message.length });
+      logger.info('Sending message to Copilot', {
+        sessionId: id,
+        messageLength: message.length,
+        requestedModel: model || null,
+        sessionModel: session.model,
+      });
 
       let result;
       try {
-        result = await sendMessage(session.copilotSession, message);
+        result = await sendMessage(session.copilotSession, message, {
+          signal: turnAbortController.signal,
+        });
       } catch (sendErr) {
+        if (sendErr?.name === 'AbortError') {
+          logger.warn('Copilot turn canceled', { sessionId: id });
+          session.status = 'idle';
+          session.copilotSession = null;
+          return res.status(499).json({
+            canceled: true,
+            sessionId: id,
+          });
+        }
+
         if (!isStaleSdkSessionError(sendErr)) {
           throw sendErr;
         }
@@ -345,7 +383,9 @@ Do not respond to this message - just acknowledge with "Ready."`;
         );
         session.status = 'active';
 
-        result = await sendMessage(session.copilotSession, message);
+        result = await sendMessage(session.copilotSession, message, {
+          signal: turnAbortController.signal,
+        });
       }
 
       // 4. Add assistant response to history with correct meta
@@ -429,6 +469,39 @@ Do not respond to this message - just acknowledge with "Ready."`;
       });
     } catch (err) {
       next(err);
+    } finally {
+      activeTurns.delete(req.params.id);
+    }
+  });
+
+  // ─── POST /session/:id/chat/cancel ──────────────────────────────
+  // Cancels an in-flight response for the session.
+  router.post('/session/:id/chat/cancel', async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const session = getSession(id);
+      if (!session) {
+        return res.status(404).json({ error: 'Session not found' });
+      }
+
+      const activeTurn = activeTurns.get(id);
+      if (!activeTurn) {
+        return res.json({ success: true, canceled: false });
+      }
+
+      activeTurn.abort?.();
+
+      if (session.copilotSession) {
+        await closeCopilotSdkSession(session.copilotSession);
+        session.copilotSession = null;
+      }
+
+      session.status = 'idle';
+      logger.info('Session turn canceled via API', { sessionId: id });
+
+      res.json({ success: true, canceled: true, sessionId: id });
+    } catch (err) {
+      next(err);
     }
   });
 
@@ -441,6 +514,10 @@ Do not respond to this message - just acknowledge with "Ready."`;
         return res.status(404).json({ error: 'Session not found' });
       }
 
+      logger.info('Session messages fetched', {
+        sessionId: req.params.id,
+        messageCount: session.messages.length,
+      });
       res.json(session.messages);
     } catch (err) {
       next(err);

@@ -1,13 +1,7 @@
 // API client for OpenTop backend
 // Handles all REST API calls to the server
 
-// Dynamic server URL: use current origin in production, localhost for dev
 function getDefaultServerUrl() {
-  // If we're on Vite dev server (port 5173), connect to backend on 18790
-  if (window.location.origin === 'http://localhost:5173') {
-    return 'http://localhost:18790'
-  }
-  // Otherwise, use same origin as the page (tunnel URL or deployed URL)
   return window.location.origin
 }
 
@@ -46,14 +40,23 @@ class ApiClient {
 
     try {
       const response = await fetch(url, config)
-      const data = await response.json()
+      const raw = await response.text()
+      let data = null
+      try {
+        data = raw ? JSON.parse(raw) : null
+      } catch {
+        data = raw || null
+      }
 
       if (!response.ok) {
-        throw new Error(data.error || data.message || `HTTP ${response.status}`)
+        throw new Error(data?.error || data?.message || data || `HTTP ${response.status}`)
       }
 
       return data
     } catch (error) {
+      if (error.name === 'AbortError') {
+        throw error
+      }
       if (error.name === 'TypeError' && error.message.includes('fetch')) {
         throw new Error('Cannot connect to server. Is OpenTop running?')
       }
@@ -109,10 +112,20 @@ class ApiClient {
   }
 
   // Chat
-  async sendMessage(sessionId, message) {
+  async sendMessage(sessionId, message, options = {}) {
+    const payload = { message }
+    if (options.model) payload.model = options.model
+
     return this.request(`/session/${sessionId}/chat`, {
       method: 'POST',
-      body: JSON.stringify({ message }),
+      body: JSON.stringify(payload),
+      signal: options.signal,
+    })
+  }
+
+  async cancelSessionTurn(sessionId) {
+    return this.request(`/session/${sessionId}/chat/cancel`, {
+      method: 'POST',
     })
   }
 

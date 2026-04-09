@@ -2,20 +2,14 @@ import { createContext, useContext, useReducer, useEffect, useCallback, useRef }
 import { api } from '@/lib/api'
 import { ws } from '@/lib/websocket'
 
-// Get default server URL dynamically
 function getDefaultServerUrl() {
-  // If we're on Vite dev server (port 5173), connect to backend on 18790
-  if (window.location.origin === 'http://localhost:5173') {
-    return 'http://localhost:18790'
-  }
-  // Otherwise, use same origin as the page (tunnel URL or deployed URL)
   return window.location.origin
 }
 
 // Initial state
 const initialState = {
   // Connection
-  serverUrl: localStorage.getItem('serverUrl') || getDefaultServerUrl(),
+  serverUrl: getDefaultServerUrl(),
   pairingToken: localStorage.getItem('pairingToken') || '',
   isConnected: false,
   isConnecting: false,
@@ -177,6 +171,11 @@ const AppContext = createContext(null)
 export function AppProvider({ children }) {
   const [state, dispatch] = useReducer(appReducer, initialState)
   const hasAutoRestoredSessionRef = useRef(false)
+  const activeRequestRef = useRef(null)
+  const isUnauthorizedError = useCallback((error) => {
+    const message = String(error?.message || '')
+    return /unauthorized|401|pairing/i.test(message)
+  }, [])
 
   // Initialize API URL and token
   useEffect(() => {
@@ -263,7 +262,9 @@ export function AppProvider({ children }) {
   const checkConnection = useCallback(async () => {
     dispatch({ type: actions.SET_CONNECTING, payload: true })
     try {
+      // Health is public; verify a protected endpoint to confirm PIN auth.
       await api.getHealth()
+      await api.getSessions()
       dispatch({ type: actions.SET_CONNECTED, payload: true })
       return { ok: true, error: null }
     } catch (error) {
@@ -287,9 +288,13 @@ export function AppProvider({ children }) {
       dispatch({ type: actions.SET_SESSIONS, payload: sessions })
     } catch (error) {
       console.error('Failed to load sessions:', error)
+      if (isUnauthorizedError(error)) {
+        dispatch({ type: actions.SET_CONNECTION_ERROR, payload: error.message })
+        return
+      }
       dispatch({ type: actions.SET_SESSIONS, payload: [] })
     }
-  }, [])
+  }, [isUnauthorizedError])
 
   const fetchUser = useCallback(async () => {
     dispatch({ type: actions.SET_USER_LOADING, payload: true })
@@ -304,12 +309,16 @@ export function AppProvider({ children }) {
       })
     } catch (error) {
       console.error('Failed to fetch user:', error)
+      if (isUnauthorizedError(error)) {
+        dispatch({ type: actions.SET_CONNECTION_ERROR, payload: error.message })
+        return
+      }
       dispatch({ 
         type: actions.SET_USER, 
         payload: { displayName: 'User', username: null }
       })
     }
-  }, [])
+  }, [isUnauthorizedError])
 
   const updateDisplayName = useCallback(async (newName) => {
     try {
@@ -381,10 +390,40 @@ export function AppProvider({ children }) {
     }
   }, [])
 
+  // Keep sessions and the active conversation fresh across devices.
+  useEffect(() => {
+    if (!state.isConnected) return
+
+    const refresh = () => {
+      loadSessions()
+      if (state.currentSessionId && !state.isSending) {
+        loadMessages(state.currentSessionId)
+      }
+    }
+
+    refresh()
+
+    const intervalId = window.setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        refresh()
+      }
+    }, 4000)
+
+    window.addEventListener('focus', refresh)
+    document.addEventListener('visibilitychange', refresh)
+
+    return () => {
+      window.clearInterval(intervalId)
+      window.removeEventListener('focus', refresh)
+      document.removeEventListener('visibilitychange', refresh)
+    }
+  }, [state.isConnected, state.currentSessionId, state.isSending, loadMessages, loadSessions])
+
   const sendMessage = useCallback(async (message, options = {}) => {
     let sessionId = state.currentSessionId
     const selectedProject = options?.project || null
     const selectedModel = options?.model || null
+    const controller = new AbortController()
     dispatch({ type: actions.SET_SENDING, payload: true })
 
     try {
@@ -415,6 +454,7 @@ export function AppProvider({ children }) {
       }
 
       dispatch({ type: actions.SET_SENDING_SESSION, payload: sessionId })
+      activeRequestRef.current = { controller, sessionId }
 
       // Add user message optimistically
       const userMessage = {
@@ -424,7 +464,10 @@ export function AppProvider({ children }) {
       }
       dispatch({ type: actions.ADD_MESSAGE, payload: userMessage })
 
-      const result = await api.sendMessage(sessionId, message)
+      const result = await api.sendMessage(sessionId, message, {
+        model: selectedModel,
+        signal: controller.signal,
+      })
 
       // Add assistant message
       const assistantMessage = {
@@ -448,10 +491,39 @@ export function AppProvider({ children }) {
 
       return result
     } catch (error) {
+      if (error.name === 'AbortError') {
+        dispatch({ type: actions.SET_SENDING, payload: false })
+        return { canceled: true }
+      }
+      if (isUnauthorizedError(error)) {
+        dispatch({ type: actions.SET_CONNECTION_ERROR, payload: error.message })
+      }
       dispatch({ type: actions.SET_SEND_ERROR, payload: error.message })
       throw error
+    } finally {
+      if (activeRequestRef.current?.controller === controller) {
+        activeRequestRef.current = null
+      }
     }
-  }, [state.currentSessionId, state.sessions])
+  }, [isUnauthorizedError, state.currentSessionId, state.sessions])
+
+  const cancelMessage = useCallback(async () => {
+    const activeRequest = activeRequestRef.current
+    if (!activeRequest?.sessionId) return
+
+    activeRequest.controller.abort()
+
+    try {
+      await api.cancelSessionTurn(activeRequest.sessionId)
+      await loadMessages(activeRequest.sessionId)
+      await loadSessions()
+    } catch (error) {
+      console.error('Failed to cancel message:', error)
+    } finally {
+      activeRequestRef.current = null
+      dispatch({ type: actions.SET_SENDING, payload: false })
+    }
+  }, [loadMessages, loadSessions])
 
   const approvePermission = useCallback((id) => {
     ws.sendPermissionResponse(id, true)
@@ -477,6 +549,7 @@ export function AppProvider({ children }) {
     updateSessionTitle,
     loadMessages,
     sendMessage,
+    cancelMessage,
     approvePermission,
     denyPermission,
   }

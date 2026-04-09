@@ -1,11 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { ArrowUp, Plus } from 'lucide-react'
+import { ArrowUp, Plus, Square } from 'lucide-react'
 import ModelSelector from './ModelSelector'
 
 export default function ChatInput({
   input,
   setInput,
   onSend,
+  onCancel,
   isLoading,
   isInitial = false,
   initialModel = null,
@@ -68,17 +69,23 @@ export default function ChatInput({
             }} />
 
             <button
-              onClick={handleSend}
-              disabled={isLoading || !input.trim()}
+              onClick={isLoading ? onCancel : handleSend}
+              disabled={isLoading ? !onCancel : !input.trim()}
               className={[
                 'flex h-11 w-11 items-center justify-center rounded-2xl transition',
-                input.trim() && !isLoading
+                isLoading
+                  ? 'bg-amber-300 text-[#181513] hover:bg-amber-200'
+                  : input.trim()
                   ? 'bg-[var(--color-app-text)] text-[#181513] hover:bg-[#fff8ef]'
                   : 'bg-white/[0.05] text-[var(--color-app-muted)]',
               ].join(' ')}
-              aria-label="Send message"
+              aria-label={isLoading ? 'Cancel message' : 'Send message'}
             >
-              <ArrowUp className="h-4.5 w-4.5" strokeWidth={2.2} />
+              {isLoading ? (
+                <Square className="h-4 w-4" fill="currentColor" />
+              ) : (
+                <ArrowUp className="h-4.5 w-4.5" strokeWidth={2.2} />
+              )}
             </button>
           </div>
         </div>

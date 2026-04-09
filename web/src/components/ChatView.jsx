@@ -8,7 +8,7 @@ import EmptyChat from './EmptyChat'
 import ChatInput from './ChatInput'
 
 export default function ChatView({ sessionId, onOpenSidebar }) {
-  const { sessions, messages, sendMessage, isSending, sendError } = useApp()
+  const { sessions, messages, sendMessage, cancelMessage, isSending, sendError } = useApp()
   const [input, setInput] = useState('')
   const bottomRef = useRef(null)
 
@@ -109,6 +109,7 @@ export default function ChatView({ sessionId, onOpenSidebar }) {
             input={input}
             setInput={setInput}
             onSend={handleSend}
+            onCancel={cancelMessage}
             isLoading={isSending}
             initialModel={session?.model || null}
           />

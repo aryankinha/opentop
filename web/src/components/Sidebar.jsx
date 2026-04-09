@@ -40,11 +40,7 @@ export default function Sidebar({
     return allSessions.filter((session) => Boolean(session?.project?.path))
   }, [allSessions])
 
-  const globalSessions = useMemo(() => {
-    return allSessions.filter((session) => !session?.project?.path)
-  }, [allSessions])
-
-  const displayedSessions = chatScope === 'project' ? projectSessions : globalSessions
+  const displayedSessions = chatScope === 'project' ? projectSessions : allSessions
   const activeGeneratingSessionId = isSending
     ? (generatingSessionId || activeSessionId)
     : null

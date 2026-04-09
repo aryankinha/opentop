@@ -53,16 +53,12 @@ function parseQRData(qrText) {
 }
 
 function getServerUrl() {
-  if (window.location.origin === 'http://localhost:5173') {
-    return 'http://localhost:18790'
-  }
-
   return window.location.origin
 }
 
 export default function ConnectScreen({ onConnect }) {
   const { setServerUrl, setPairingToken } = useApp()
-  const [mode, setMode] = useState('home')
+  const [mode, setMode] = useState('manual')
   const [pin, setPin] = useState('')
   const [error, setError] = useState('')
   const [connectUrl, setConnectUrl] = useState(getServerUrl())
@@ -131,7 +127,7 @@ export default function ConnectScreen({ onConnect }) {
     setIsReconnecting(false)
     setConnectUrl(getServerUrl())
     setPin('')
-    setMode('home')
+    setMode('manual')
   }
 
   if (mode === 'scan') {
@@ -224,6 +220,9 @@ export default function ConnectScreen({ onConnect }) {
               <h2 className="mt-5 text-2xl font-semibold text-[var(--color-app-text)]">
                 Pair with PIN
               </h2>
+              <p className="mt-2 text-sm text-[var(--color-app-muted)]">
+                Enter the 6-digit PIN shown in your terminal after running `opentop start`.
+              </p>
 
               <div className="mt-6 space-y-4">
                 <div>

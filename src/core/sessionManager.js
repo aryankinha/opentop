@@ -15,12 +15,17 @@ import {
   existsSync,
 } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { homedir } from 'node:os';
 import { config } from '../config.js';
 import { closeSession as closeCopilotSession } from './copilotClient.js';
 import { appendToMemoryFile } from './globalMemory.js';
 import logger from '../utils/logger.js';
 
-const SESSIONS_DIR = resolve('storage/sessions');
+const GLOBAL_STORAGE_DIR = join(homedir(), '.opentop', 'storage');
+const SESSIONS_DIR = join(GLOBAL_STORAGE_DIR, 'sessions');
+const LEGACY_SESSIONS_DIR = resolve('storage/sessions');
+
+export { SESSIONS_DIR, LEGACY_SESSIONS_DIR };
 
 // Ensure storage directory exists
 if (!existsSync(SESSIONS_DIR)) {
@@ -36,12 +41,31 @@ function sessionPath(sessionId) {
   return join(SESSIONS_DIR, `${sessionId}.json`);
 }
 
+function legacySessionPath(sessionId) {
+  return join(LEGACY_SESSIONS_DIR, `${sessionId}.json`);
+}
+
 function walPath(sessionId) {
   return join(SESSIONS_DIR, `${sessionId}.wal`);
 }
 
+function legacyWalPath(sessionId) {
+  return join(LEGACY_SESSIONS_DIR, `${sessionId}.wal`);
+}
+
 function archivePath(sessionId) {
   return join(SESSIONS_DIR, `${sessionId}.archive.json`);
+}
+
+function legacyArchivePath(sessionId) {
+  return join(LEGACY_SESSIONS_DIR, `${sessionId}.archive.json`);
+}
+
+function hasAnySessionFile(sessionId) {
+  return (
+    existsSync(sessionPath(sessionId)) ||
+    existsSync(legacySessionPath(sessionId))
+  );
 }
 
 /**
@@ -52,7 +76,7 @@ function reconcileSessionsWithDisk() {
   let removed = 0;
 
   for (const [sessionId] of sessions) {
-    if (!existsSync(sessionPath(sessionId))) {
+    if (!hasAnySessionFile(sessionId)) {
       sessions.delete(sessionId);
       removed++;
     }
@@ -270,7 +294,7 @@ export function getSession(sessionId) {
   if (!session) return null;
 
   // If the backing file was deleted manually, treat session as deleted.
-  if (!existsSync(sessionPath(sessionId))) {
+  if (!hasAnySessionFile(sessionId)) {
     sessions.delete(sessionId);
     logger.warn('Session evicted from memory because file is missing', { sessionId });
     return null;
@@ -508,7 +532,14 @@ export async function deleteSession(sessionId) {
   sessions.delete(sessionId);
 
   // Clean up all related files
-  for (const path of [sessionPath(sessionId), walPath(sessionId), archivePath(sessionId)]) {
+  for (const path of [
+    sessionPath(sessionId),
+    walPath(sessionId),
+    archivePath(sessionId),
+    legacySessionPath(sessionId),
+    legacyWalPath(sessionId),
+    legacyArchivePath(sessionId),
+  ]) {
     try {
       if (existsSync(path)) unlinkSync(path);
     } catch {
@@ -551,27 +582,38 @@ export function updateSessionTitle(sessionId, title, version, isCustom = false) 
  * Called once at server startup.
  */
 export function loadAllSessions() {
-  if (!existsSync(SESSIONS_DIR)) return;
+  const sourceDirs = [
+    SESSIONS_DIR,
+    ...(existsSync(LEGACY_SESSIONS_DIR) ? [LEGACY_SESSIONS_DIR] : []),
+  ];
 
-  const files = readdirSync(SESSIONS_DIR).filter(
-    (f) => f.endsWith('.json') && !f.endsWith('.archive.json')
-  );
+  for (const dir of sourceDirs) {
+    const files = readdirSync(dir).filter(
+      (f) => f.endsWith('.json') && !f.endsWith('.archive.json')
+    );
 
-  for (const file of files) {
-    try {
-      const raw = readFileSync(join(SESSIONS_DIR, file), 'utf-8');
-      const data = JSON.parse(raw);
+    for (const file of files) {
+      try {
+        const raw = readFileSync(join(dir, file), 'utf-8');
+        const data = JSON.parse(raw);
 
-      // Restore session into memory (copilotSession is null until re-created)
-      sessions.set(data.sessionId, {
-        ...data,
-        copilotSession: null,
-      });
-    } catch (err) {
-      logger.error('Failed to load session file', {
-        file,
-        error: err.message,
-      });
+        // Prefer the global store if the same session exists in multiple places.
+        if (sessions.has(data.sessionId) && dir !== SESSIONS_DIR) {
+          continue;
+        }
+
+        // Restore session into memory (copilotSession is null until re-created)
+        sessions.set(data.sessionId, {
+          ...data,
+          copilotSession: null,
+        });
+      } catch (err) {
+        logger.error('Failed to load session file', {
+          file,
+          dir,
+          error: err.message,
+        });
+      }
     }
   }
 
@@ -580,5 +622,9 @@ export function loadAllSessions() {
     replayWAL(sessionId);
   }
 
-  logger.info('Sessions loaded from disk', { count: sessions.size });
+  logger.info('Sessions loaded from disk', {
+    count: sessions.size,
+    storageDir: SESSIONS_DIR,
+    legacyStorageDir: existsSync(LEGACY_SESSIONS_DIR) ? LEGACY_SESSIONS_DIR : null,
+  });
 }

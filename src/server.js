@@ -13,10 +13,10 @@ import { WebSocketServer } from 'ws';
 
 import { config } from './config.js';
 import { initClient } from './core/copilotClient.js';
-import { loadAllSessions, getAllSessions } from './core/sessionManager.js';
+import { loadAllSessions, getAllSessions, SESSIONS_DIR } from './core/sessionManager.js';
 import { discoverSystem } from './core/globalMemory.js';
 import { resolvePermission } from './core/permissionBroker.js';
-import { pairingAuthMiddleware } from './core/pairingToken.js';
+import { pairingAuthMiddleware, createPairingToken, loadPairingToken } from './core/pairingToken.js';
 import { createChatRouter } from './routes/chat.js';
 import logger from './utils/logger.js';
 
@@ -24,6 +24,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const app = express();
 const server = createServer(app);
+const instanceId = `${process.pid}-${Date.now()}`;
 
 // ─── Static files directory ─────────────────────────────────────────
 const publicDir = join(__dirname, 'public');
@@ -84,6 +85,10 @@ app.get('/health', (_req, res) => {
     status: 'healthy',
     sessions: sessions.length,
     uptime: Math.floor((Date.now() - startTime) / 1000),
+    pid: process.pid,
+    instanceId,
+    port: config.port,
+    storageDir: SESSIONS_DIR,
   });
 });
 
@@ -247,9 +252,15 @@ export async function startServer(overrides = {}) {
       logger.warn('System discovery failed', { error: err.message })
     );
 
+    // 4.5 Ensure pairing credentials exist and are visible when starting directly.
+    const pairing = loadPairingToken() || createPairingToken();
+
     // 5. Start HTTP + WebSocket server
     server.listen(config.port, () => {
       logger.info(`OpenTop server running on port ${config.port}`, {
+        instanceId,
+        pid: process.pid,
+        storageDir: SESSIONS_DIR,
         port: config.port,
         endpoints: {
           health: `GET /health`,
@@ -264,6 +275,9 @@ export async function startServer(overrides = {}) {
           websocket: `ws://localhost:${config.port}`,
         },
       });
+      logger.info('Pairing PIN ready', { pairingPin: pairing.pin });
+      console.log(`OpenTop URL: http://localhost:${config.port}`);
+      console.log(`OpenTop PIN: ${pairing.pin}`);
     });
   } catch (err) {
     logger.error('Fatal: failed to start server', {

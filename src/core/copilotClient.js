@@ -297,11 +297,18 @@ When working in this project, always start by understanding the codebase structu
  * @param {string} message - The user message to send
  * @returns {Promise<{ content: string, toolsUsed: string[] }>}
  */
-export function sendMessage(session, message) {
+function createAbortError(reason = 'Request aborted') {
+  const error = new Error(reason);
+  error.name = 'AbortError';
+  return error;
+}
+
+export function sendMessage(session, message, options = {}) {
   return new Promise((resolve, reject) => {
     let content = '';
     const toolsUsed = [];
     let settled = false;
+    const { signal } = options;
 
     const settle = (fn) => (...args) => {
       if (!settled) {
@@ -309,6 +316,21 @@ export function sendMessage(session, message) {
         fn(...args);
       }
     };
+
+    if (signal?.aborted) {
+      settle(reject)(createAbortError());
+      return;
+    }
+
+    const handleAbort = () => {
+      logger.warn('Aborting active Copilot turn');
+      Promise.resolve(session.disconnect?.()).catch(() => {});
+      settle(reject)(createAbortError());
+    };
+
+    if (signal) {
+      signal.addEventListener('abort', handleAbort, { once: true });
+    }
 
     // Subscribe to all session events
     session.on((event) => {
@@ -342,6 +364,9 @@ export function sendMessage(session, message) {
         // Turn is complete
         case 'session.idle':
           logger.debug('Session idle — turn complete');
+          if (signal) {
+            signal.removeEventListener('abort', handleAbort);
+          }
           settle(resolve)({ content, toolsUsed });
           break;
 
@@ -352,6 +377,9 @@ export function sendMessage(session, message) {
             message: event.data?.message,
             code: event.data?.code,
           });
+          if (signal) {
+            signal.removeEventListener('abort', handleAbort);
+          }
           settle(reject)(new Error(event.data?.message || 'Session error'));
           break;
 
@@ -368,6 +396,9 @@ export function sendMessage(session, message) {
         type: error.constructor.name,
         stack: error.stack?.split('\n').slice(0, 3).join(' | '),
       });
+      if (signal) {
+        signal.removeEventListener('abort', handleAbort);
+      }
       settle(reject)(error);
     });
   });

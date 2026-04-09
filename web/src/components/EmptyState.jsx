@@ -15,7 +15,7 @@ export default function EmptyState({
   showInstallButton = false,
   onInstallPWA,
 }) {
-  const { sendMessage, isSending, sendError } = useApp()
+  const { sendMessage, cancelMessage, isSending, sendError } = useApp()
   const [input, setInput] = useState('')
 
   const handleSend = async (text, model) => {
@@ -116,6 +116,7 @@ export default function EmptyState({
                 input={input}
                 setInput={setInput}
                 onSend={handleSend}
+                onCancel={cancelMessage}
                 isLoading={isSending}
                 isInitial
               />
