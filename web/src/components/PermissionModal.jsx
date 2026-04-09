@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 
 function formatPermissionDetail(request) {
   const detail = request?.detail
@@ -22,88 +22,105 @@ function formatPermissionDetail(request) {
   return String(detail)
 }
 
-export default function PermissionModal({ request, onAllow, onDeny }) {
+function getKindTone(kind) {
+  switch (kind) {
+    case 'shell':
+      return 'border-rose-400/20 bg-rose-500/10 text-rose-100'
+    case 'write':
+      return 'border-amber-400/20 bg-amber-500/10 text-amber-100'
+    case 'read':
+      return 'border-sky-400/20 bg-sky-500/10 text-sky-100'
+    default:
+      return 'border-white/10 bg-white/[0.05] text-[var(--color-app-text)]'
+  }
+}
+
+export default function PermissionModal({ request, onAllow, onDeny, onAllowAlways }) {
   const [countdown, setCountdown] = useState(60)
   const kind = request?.kind || request?.detail?.kind || 'unknown'
   const detailText = formatPermissionDetail(request)
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     setCountdown(60)
   }, [request?.id])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     if (countdown <= 0) {
       onDeny?.()
       return
     }
-    const t = setTimeout(() => setCountdown(c => c - 1), 1000)
-    return () => clearTimeout(t)
+
+    const timeoutId = setTimeout(() => setCountdown((value) => value - 1), 1000)
+    return () => clearTimeout(timeoutId)
   }, [countdown, onDeny])
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center
-      justify-center p-4 bg-black/50 backdrop-blur-sm">
-
-      <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl
-        overflow-hidden">
-
-        {/* Header */}
-        <div className="px-5 pt-5 pb-4 border-b border-gray-100">
-          <div className="flex items-center gap-3">
-            <div className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-              kind === 'shell' ? 'bg-red-100 text-red-700' :
-              kind === 'write' ? 'bg-orange-100 text-orange-700' :
-              kind === 'read'  ? 'bg-blue-100 text-blue-700' :
-              kind === 'url'   ? 'bg-purple-100 text-purple-700' :
-              'bg-green-100 text-green-700'
-            }`}>
+    <div className="fixed inset-0 z-[120] flex items-end justify-center bg-black/60 p-4 backdrop-blur-md sm:items-center">
+      <div className="w-full max-w-lg overflow-hidden rounded-[30px] border border-[var(--color-app-border)] bg-[var(--color-app-panel-strong)] shadow-[0_32px_120px_rgba(0,0,0,0.55)]">
+        <div className="border-b border-white/6 px-5 py-5">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-[0.24em] text-[var(--color-app-muted)]">
+                Permission request
+              </p>
+              <h2 className="mt-2 text-lg font-semibold text-[var(--color-app-text)]">
+                OpenTop needs approval
+              </h2>
+            </div>
+            <span className={`rounded-full border px-3 py-1 text-xs font-medium ${getKindTone(kind)}`}>
               {kind}
-            </div>
-            <h2 className="font-semibold text-gray-900">Permission Request</h2>
-          </div>
-        </div>
-
-        {/* Detail */}
-        <div className="px-5 py-4">
-          <p className="text-xs text-gray-500 mb-2">Copilot wants to run:</p>
-          <div className="bg-gray-900 rounded-xl px-4 py-3">
-            <code className="text-green-400 text-xs font-mono break-all">
-              {detailText}
-            </code>
-          </div>
-        </div>
-
-        {/* Countdown */}
-        <div className="px-5 pb-3">
-          <div className="flex items-center gap-2">
-            <div className="flex-1 bg-gray-100 rounded-full h-1">
-              <div
-                className="bg-amber-500 h-1 rounded-full transition-all"
-                style={{ width: `${(countdown / 60) * 100}%` }}
-              />
-            </div>
-            <span className="text-xs text-gray-400 w-12 text-right">
-              {countdown}s
             </span>
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="px-5 pb-5 flex gap-3">
-          <button
-            onClick={onDeny}
-            className="flex-1 py-2.5 border border-gray-300 text-gray-700
-              rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors"
-          >
-            Deny
-          </button>
-          <button
-            onClick={onAllow}
-            className="flex-1 py-2.5 bg-[#1a1a1a] text-white rounded-xl
-              text-sm font-medium hover:bg-gray-800 transition-colors"
-          >
-            Allow
-          </button>
+        <div className="space-y-5 px-5 py-5">
+          <div>
+            <p className="mb-2 text-sm text-[var(--color-app-muted)]">
+              Copilot is asking to run this action:
+            </p>
+            <div className="overflow-x-auto rounded-[24px] border border-white/6 bg-black/20 p-4">
+              <code className="text-sm break-all text-[var(--color-app-text)]">{detailText}</code>
+            </div>
+          </div>
+
+          <div>
+            <div className="mb-2 flex items-center justify-between text-xs text-[var(--color-app-muted)]">
+              <span>Auto-denies in</span>
+              <span>{countdown}s</span>
+            </div>
+            <div className="h-1.5 overflow-hidden rounded-full bg-white/8">
+              <div
+                className="h-full rounded-full bg-amber-300 transition-all"
+                style={{ width: `${(countdown / 60) * 100}%` }}
+              />
+            </div>
+          </div>
+
+          {onAllowAlways && kind !== 'unknown' && (
+            <button
+              onClick={onAllowAlways}
+              className="w-full rounded-[22px] border border-white/8 bg-white/[0.04] px-4 py-3 text-sm text-[var(--color-app-text)] transition hover:bg-white/[0.08]"
+            >
+              Always allow this type ({kind})
+            </button>
+          )}
+
+          <div className="flex gap-3">
+            <button
+              onClick={onDeny}
+              className="flex-1 rounded-[22px] border border-white/8 px-4 py-3 text-sm font-medium text-[var(--color-app-muted)] transition hover:bg-white/[0.05] hover:text-[var(--color-app-text)]"
+            >
+              Deny
+            </button>
+            <button
+              onClick={onAllow}
+              className="flex-1 rounded-[22px] bg-[var(--color-app-text)] px-4 py-3 text-sm font-semibold text-[#181513] transition hover:bg-[#fff8ef]"
+            >
+              Allow
+            </button>
+          </div>
         </div>
       </div>
     </div>

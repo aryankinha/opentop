@@ -26,6 +26,15 @@ function writeProjectChatMap(map) {
   localStorage.setItem(PROJECT_CHAT_MAP_KEY, JSON.stringify(map || {}))
 }
 
+function uniqueKinds(list = []) {
+  return [...new Set(
+    list
+      .filter((item) => typeof item === 'string')
+      .map((item) => item.trim().toLowerCase())
+      .filter(Boolean),
+  )]
+}
+
 function getPreferredModel() {
   return localStorage.getItem('selectedModel') || 'claude-sonnet-4.5'
 }
@@ -132,6 +141,7 @@ function AppContent() {
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   // Fetch projects
   useEffect(() => {
     fetchProjects()
@@ -166,6 +176,7 @@ function AppContent() {
     }
     localStorage.setItem('activeProjectPath', nextProject.path)
   }, [projects, activeProject, sessions, activeSessionId])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const handleSelectSession = (id) => {
     const selectedSession = sessions.find((s) => s.sessionId === id)
@@ -242,6 +253,26 @@ function AppContent() {
     setServerUrl('') // Disconnect
   }
 
+  const handleAllowAlwaysForType = async (request) => {
+    const kind = request?.kind || request?.detail?.kind
+    if (!request?.id) return
+
+    try {
+      if (kind) {
+        const currentPolicy = await api.getPermissionSettings()
+        const nextAutoApproveTools = uniqueKinds([
+          ...(currentPolicy?.autoApproveTools || []),
+          kind,
+        ])
+        await api.updatePermissionSettings(nextAutoApproveTools)
+      }
+    } catch (error) {
+      console.error('Failed to persist always-allow permission type:', error)
+    }
+
+    approvePermission(request.id)
+  }
+
   if (!isConnected) {
     return (
       <>
@@ -265,11 +296,12 @@ function AppContent() {
     : null
 
   return (
-    <div className="flex h-screen bg-[#18181b] overflow-hidden relative text-zinc-200">
-      {/* Mobile Sidebar Overlay */}
+    <div className="relative flex min-h-screen overflow-hidden bg-[var(--color-app-bg)] text-[var(--color-app-text)]">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(245,158,11,0.08),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(120,113,108,0.12),transparent_24%)]" />
+
       {sidebarOpen && isMobile && (
         <div 
-          className="fixed inset-0 bg-black/60 z-30 md:hidden" 
+          className="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm md:hidden" 
           onClick={onCloseSidebar} 
         />
       )}
@@ -291,37 +323,40 @@ function AppContent() {
         generatingSessionId={generatingSessionId}
       />
 
-      <main className="flex-1 flex flex-col min-w-0 bg-[#18181b] md:relative absolute inset-0 z-0">
-        {activeSessionId ? (
-          <ChatView
-            sessionId={activeSessionId}
-            serverUrl={serverUrl}
-            onBack={handleNewChat}
-            onOpenSidebar={onOpenSidebar}
-          />
-        ) : (
-          <EmptyState
-            onNewChat={handleNewChat}
-            onOpenSidebar={onOpenSidebar}
-            projects={projects}
-            activeProject={activeProject}
-            serverUrl={serverUrl}
-            showInstallButton={isMobile && !isPWAInstalled}
-            onInstallPWA={handleInstallPWAFromNewChat}
-          />
-        )}
+      <main className="relative z-10 flex min-w-0 flex-1 flex-col">
+        <div className="flex min-h-screen flex-1 p-0 md:p-4">
+          <div className="flex min-h-screen flex-1 flex-col overflow-hidden md:min-h-0 md:rounded-[28px] md:border md:border-[var(--color-app-border)]/70 md:bg-[rgba(24,21,19,0.82)] md:shadow-[0_24px_80px_rgba(0,0,0,0.35)]">
+            {activeSessionId ? (
+              <ChatView
+                sessionId={activeSessionId}
+                serverUrl={serverUrl}
+                onBack={handleNewChat}
+                onOpenSidebar={onOpenSidebar}
+              />
+            ) : (
+              <EmptyState
+                onNewChat={handleNewChat}
+                onOpenSidebar={onOpenSidebar}
+                projects={projects}
+                activeProject={activeProject}
+                serverUrl={serverUrl}
+                showInstallButton={isMobile && !isPWAInstalled}
+                onInstallPWA={handleInstallPWAFromNewChat}
+              />
+            )}
+          </div>
+        </div>
       </main>
 
-      {/* Put permissions modal overlay here */}
       {permissionRequests.length > 0 && (
          <PermissionModal 
            request={permissionRequests[0]} 
            onAllow={() => approvePermission(permissionRequests[0].id)}
            onDeny={() => denyPermission(permissionRequests[0].id)}
+           onAllowAlways={() => handleAllowAlwaysForType(permissionRequests[0])}
          />
       )}
       
-      {/* PWA Install Notification */}
       <PWAInstallPrompt 
         showPrompt={showPWAPrompt && !activeSessionId}
         canInstall={canPWAInstall}

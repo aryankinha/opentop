@@ -127,23 +127,36 @@ export async function createAgentSession(sessionId, model, onPermission, previou
   try {
     const globalMemoryPrompt = buildGlobalMemoryPrompt();
 
-    // Use project path as workspace if specified, otherwise home directory
-    const workspacePath = project?.path || homedir();
+    const normalizedProject = (
+      project &&
+      typeof project.path === 'string' &&
+      project.path.trim().length > 0
+    )
+      ? {
+          ...project,
+          path: project.path.trim(),
+          name: project.name || project.path.trim(),
+        }
+      : null;
+
+    // Global sessions must always start from the user's home directory.
+    // Never reuse any previous workspace when there is no active project.
+    const workspacePath = normalizedProject ? normalizedProject.path : homedir();
 
     // Build project context if a project is specified
-    const projectContext = project
+    const projectContext = normalizedProject
       ? `\n\n## Current Project
-- Name: ${project.name}
-- Path: ${project.path}
+- Name: ${normalizedProject.name}
+- Path: ${normalizedProject.path}
 - You are working EXCLUSIVELY in this project directory.
-- All file operations, shell commands, and code changes should be relative to ${project.path} unless explicitly told otherwise.
-- When the user says "this project" or "here", they mean ${project.path}.`
+- All file operations, shell commands, and code changes should be relative to ${normalizedProject.path} unless explicitly told otherwise.
+- When the user says "this project" or "here", they mean ${normalizedProject.path}.`
       : '';
 
     // Build role definition with clear workspace context
     let roleDefinition;
-    if (project) {
-      roleDefinition = `You have access to the project at ${project.path}.${projectContext}
+    if (normalizedProject) {
+      roleDefinition = `You have access to the project at ${normalizedProject.path}.${projectContext}
 
 CRITICAL: Your working directory for ALL operations is: ${workspacePath}
 - ALWAYS prefix shell commands with: cd "${workspacePath}" &&
@@ -171,7 +184,7 @@ You can read files, run commands, edit code, and help with any task.`;
 
 When the user asks you to "remember" something, extract the key fact and say: "I'll remember that: <fact>". The system will automatically save this to global memory.`;
 
-    if (project) {
+    if (normalizedProject) {
       roleDefinition += `
 
 When working in this project, always start by understanding the codebase structure before making changes.`;
@@ -184,8 +197,8 @@ When working in this project, always start by understanding the codebase structu
     logger.info('Creating session with workspace', { 
       sessionId, 
       workspacePath, 
-      hasProject: !!project, 
-      projectName: project?.name || null 
+      hasProject: !!normalizedProject, 
+      projectName: normalizedProject?.name || null 
     });
 
     const reasoningEffort = getReasoningEffortForModel(model);
@@ -483,4 +496,3 @@ export async function summarizeMessages(messages) {
     }
   }
 }
-

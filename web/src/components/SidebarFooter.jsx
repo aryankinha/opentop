@@ -2,15 +2,14 @@ import React from 'react'
 import ProfileMenu from './ProfileMenu'
 import SystemStatus from './SystemStatus'
 
-export default function SidebarFooter({ isExpanded, onCollapsedProfileClick }) {
+export default function SidebarFooter() {
   return (
-    <div className={`border-t border-zinc-800/50 flex-shrink-0 transition-all flex flex-col ${isExpanded ? 'px-3 py-2 gap-1.5' : 'py-2 items-center'}`}>
-      {isExpanded && <SystemStatus isExpanded={isExpanded} />}
-      <div className={isExpanded ? 'w-full' : ''}>
-        <ProfileMenu
-          isExpanded={isExpanded}
-          onCollapsedClick={onCollapsedProfileClick}
-        />
+    <div className="border-t border-[var(--color-app-border)]/80 px-4 pb-4 pt-3">
+      <div className="space-y-3 rounded-[24px] border border-white/6 bg-white/[0.03] p-3">
+        <SystemStatus />
+        <div>
+          <ProfileMenu />
+        </div>
       </div>
     </div>
   )

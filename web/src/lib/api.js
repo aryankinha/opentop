@@ -181,6 +181,18 @@ class ApiClient {
     })
   }
 
+  // Permission settings
+  async getPermissionSettings() {
+    return this.request('/settings/permissions')
+  }
+
+  async updatePermissionSettings(autoApproveTools = []) {
+    return this.request('/settings/permissions', {
+      method: 'PATCH',
+      body: JSON.stringify({ autoApproveTools }),
+    })
+  }
+
   // Projects
   async getProjects() {
     return this.request('/projects')

@@ -1,22 +1,35 @@
 @import "tailwindcss";
 
 @theme {
-  --color-claude-bg: #27272a; /* zinc-800 */
-  --color-claude-surface: #18181b; /* zinc-900 */
-  --color-claude-sidebar: #18181b; /* zinc-900 */
-  --color-claude-text: #e4e4e7; /* zinc-200 */
-  --color-claude-muted: #a1a1aa; /* zinc-400 */
-  --color-claude-border: #3f3f46; /* zinc-700 */
-  --color-claude-hover: #3f3f46; /* zinc-700 */
-  --color-claude-accent: #d4d4d8; /* zinc-300 */
+  --color-app-bg: #141210;
+  --color-app-panel: #1d1917;
+  --color-app-panel-strong: #171412;
+  --color-app-sidebar: #12100f;
+  --color-app-border: #322c27;
+  --color-app-border-strong: #453c35;
+  --color-app-text: #f5efe7;
+  --color-app-muted: #b0a79d;
+  --color-app-soft: #231f1b;
+  --color-app-hover: #2a2521;
+  --color-app-accent: #f59e0b;
+  --color-app-accent-soft: #fed7aa;
+}
+
+html {
+  height: 100%;
+  color-scheme: dark;
 }
 
 body {
   margin: 0;
-  background-color: var(--color-claude-bg, #27272a);
-  color: var(--color-claude-text, #e4e4e7);
+  min-height: 100%;
+  background:
+    radial-gradient(circle at top, rgba(245, 158, 11, 0.08), transparent 28%),
+    linear-gradient(180deg, #171412 0%, #141210 60%, #100e0d 100%);
+  color: var(--color-app-text, #f5efe7);
   font-family: 'Söhne', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 #root {
@@ -25,9 +38,18 @@ body {
   flex-direction: column;
 }
 
+* {
+  box-sizing: border-box;
+}
+
+::selection {
+  background: rgba(245, 158, 11, 0.28);
+  color: #fff8ef;
+}
+
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
@@ -35,26 +57,59 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #52525b; /* zinc-600 */
-  border-radius: 3px;
+  background: rgba(100, 89, 80, 0.9);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #71717a; /* zinc-500 */
+  background: rgba(128, 114, 101, 0.95);
+  background-clip: padding-box;
 }
 
-@keyframes chat-generating-sweep {
-  0% {
-    transform: translateX(-120%);
-    opacity: 0;
-  }
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(100, 89, 80, 0.8) transparent;
+}
 
-  20% {
+.app-panel {
+  background: rgba(29, 25, 23, 0.92);
+  border: 1px solid rgba(69, 60, 53, 0.62);
+  box-shadow:
+    0 24px 80px rgba(0, 0, 0, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.app-sidebar-panel {
+  background:
+    linear-gradient(180deg, rgba(24, 20, 18, 0.98), rgba(18, 16, 15, 0.98));
+  border-right: 1px solid rgba(69, 60, 53, 0.45);
+}
+
+.app-fade-mask {
+  mask-image: linear-gradient(to bottom, transparent 0, black 24px, black calc(100% - 24px), transparent 100%);
+}
+
+@keyframes pulse-dot {
+  0%, 80%, 100% {
+    transform: scale(0.82);
+    opacity: 0.42;
+  }
+  40% {
+    transform: scale(1);
     opacity: 1;
   }
+}
 
-  100% {
-    transform: translateX(320%);
-    opacity: 0;
-  }
+.typing-dot {
+  animation: pulse-dot 1.2s ease-in-out infinite;
+}
+
+.typing-dot:nth-child(2) {
+  animation-delay: 0.16s;
+}
+
+.typing-dot:nth-child(3) {
+  animation-delay: 0.32s;
 }

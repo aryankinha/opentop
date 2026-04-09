@@ -40,12 +40,12 @@ export function PWAInstallPrompt({ showPrompt, canInstall, platform, installSucc
   if (installSuccess) {
     return (
       <div className="fixed top-0 left-0 right-0 z-50 p-3 animate-in slide-in-from-top duration-300">
-        <div className="max-w-xl mx-auto bg-emerald-900/90 border border-emerald-700 rounded-xl shadow-lg px-4 py-3 flex items-center gap-3">
-          <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center flex-shrink-0">
+        <div className="app-panel mx-auto flex max-w-xl items-center gap-3 rounded-[24px] border border-emerald-400/20 bg-emerald-500/10 px-4 py-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-emerald-400/20 text-emerald-100">
             <CheckCircle className="w-4 h-4 text-white" />
           </div>
-          <p className="text-sm text-emerald-100 font-medium flex-1">
-            OpenTop installed successfully! 🎉
+          <p className="flex-1 text-sm font-medium text-emerald-100">
+            OpenTop installed successfully.
           </p>
         </div>
       </div>
@@ -67,31 +67,27 @@ export function PWAInstallPrompt({ showPrompt, canInstall, platform, installSucc
   
   return (
     <div className="fixed top-0 left-0 right-0 z-50 p-3 animate-in slide-in-from-top duration-300">
-      <div className="max-w-xl mx-auto bg-zinc-800 border border-zinc-700 rounded-xl shadow-lg px-4 py-3 flex items-center gap-3">
-        {/* Icon */}
-        <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
-          <Download className="w-4 h-4 text-white" />
+      <div className="app-panel mx-auto flex max-w-xl items-center gap-3 rounded-[24px] px-4 py-3">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-white/8 bg-white/[0.05] text-[var(--color-app-text)]">
+          <Download className="h-4 w-4" />
         </div>
-        
-        {/* Text */}
+
         <div className="flex-1 min-w-0">
-          <p className="text-sm text-zinc-200 font-medium truncate">
+          <p className="truncate text-sm font-medium text-[var(--color-app-text)]">
             {canInstall ? 'Install OpenTop for a better experience' : 'Add OpenTop to your home screen'}
           </p>
         </div>
-        
-        {/* Download Button */}
+
         <button
           onClick={handleInstall}
-          className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg transition-colors flex-shrink-0"
+          className="flex-shrink-0 rounded-full bg-[var(--color-app-text)] px-3 py-1.5 text-sm font-medium text-[#181513] transition hover:bg-[#fff8ef]"
         >
           {canInstall ? 'Install' : 'How to Install'}
         </button>
-        
-        {/* Close Button */}
+
         <button
           onClick={onDismiss}
-          className="p-1.5 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700 rounded-lg transition-colors flex-shrink-0"
+          className="flex-shrink-0 rounded-xl p-1.5 text-[var(--color-app-muted)] transition hover:bg-white/[0.08] hover:text-[var(--color-app-text)]"
           aria-label="Close"
         >
           <X className="w-4 h-4" />

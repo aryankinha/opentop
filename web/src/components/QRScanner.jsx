@@ -57,37 +57,35 @@ export default function QRScanner({ onScan, onClose }) {
   }, [onScan])
 
   return (
-    <div className="fixed inset-0 bg-black z-50 flex flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 bg-black/80">
-        <h2 className="text-white font-medium">Scan QR Code</h2>
+    <div className="fixed inset-0 z-50 flex flex-col bg-[var(--color-app-bg)]">
+      <div className="flex items-center justify-between border-b border-white/6 bg-[rgba(20,18,16,0.96)] p-4">
+        <h2 className="font-medium text-[var(--color-app-text)]">Scan QR Code</h2>
         <button
           onClick={onClose}
-          className="p-2 rounded-full hover:bg-white/10 transition-colors"
+          className="rounded-full p-2 transition hover:bg-white/10"
         >
-          <X className="w-6 h-6 text-white" />
+          <X className="h-6 w-6 text-[var(--color-app-text)]" />
         </button>
       </div>
 
-      {/* Scanner Area */}
       <div className="flex-1 flex items-center justify-center p-4">
         {isInitializing && !error && (
-          <div className="text-center text-white">
+          <div className="text-center text-[var(--color-app-text)]">
             <Camera className="w-12 h-12 mx-auto mb-3 animate-pulse" />
             <p>Starting camera...</p>
           </div>
         )}
 
         {error && (
-          <div className="text-center text-white p-6 max-w-sm">
+          <div className="max-w-sm p-6 text-center text-[var(--color-app-text)]">
             <AlertCircle className="w-12 h-12 mx-auto mb-3 text-red-400" />
             <p className="text-red-400 mb-4">{error}</p>
-            <p className="text-sm text-gray-400 mb-6">
+            <p className="mb-6 text-sm text-[var(--color-app-muted)]">
               Make sure you've allowed camera access in your browser settings.
             </p>
             <button
               onClick={onClose}
-              className="px-6 py-2.5 bg-white/10 rounded-xl hover:bg-white/20 transition-colors"
+              className="rounded-xl bg-white/10 px-6 py-2.5 transition hover:bg-white/20"
             >
               Go Back
             </button>
@@ -101,9 +99,8 @@ export default function QRScanner({ onScan, onClose }) {
         />
       </div>
 
-      {/* Instructions */}
       {!error && (
-        <div className="p-6 text-center text-white/70 text-sm">
+        <div className="p-6 text-center text-sm text-[var(--color-app-muted)]">
           <p>Point your camera at the QR code shown in your terminal</p>
         </div>
       )}

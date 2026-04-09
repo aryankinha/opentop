@@ -1,4 +1,12 @@
 import React, { useMemo, useState } from 'react'
+import {
+  FolderOpen,
+  MessageSquarePlus,
+  Plus,
+  Search,
+  Sparkles,
+  X,
+} from 'lucide-react'
 import SessionItem from './SessionItem'
 import SidebarFooter from './SidebarFooter'
 import { api } from '@/lib/api'
@@ -17,55 +25,44 @@ export default function Sidebar({
   onCloseSidebar,
   isMobile = false,
 }) {
-  const [isExpanded, setIsExpanded] = useState(false)
   const [customPath, setCustomPath] = useState('')
   const [isAddingProject, setIsAddingProject] = useState(false)
   const [projectError, setProjectError] = useState('')
   const [chatScope, setChatScope] = useState('all')
-  const expanded = isMobile || isExpanded
 
   const allSessions = useMemo(() => {
     return [...(sessions || [])].sort(
-      (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
+      (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0),
     )
   }, [sessions])
 
   const projectSessions = useMemo(() => {
-    return [...allSessions]
-      .filter((session) => Boolean(session?.project?.path))
+    return allSessions.filter((session) => Boolean(session?.project?.path))
   }, [allSessions])
 
-  const normalSessions = useMemo(() => {
-    return [...allSessions]
-      .filter((session) => !session?.project?.path)
+  const globalSessions = useMemo(() => {
+    return allSessions.filter((session) => !session?.project?.path)
   }, [allSessions])
 
-  const displayedSessions = chatScope === 'project' ? projectSessions : normalSessions
+  const displayedSessions = chatScope === 'project' ? projectSessions : globalSessions
   const activeGeneratingSessionId = isSending
     ? (generatingSessionId || activeSessionId)
     : null
-
-  const toggleExpanded = () => {
-    if (isMobile) return
-    setIsExpanded((prev) => !prev)
-  }
 
   const handleProjectChange = async (project) => {
     setProjectError('')
     await onProjectSelect?.(project || null)
   }
 
-
-
   const handleAddCustomProject = async () => {
     const path = customPath.trim()
     if (isAddingProject) return
 
-    // If no path is typed, treat Add as "browse and pick folder".
     if (!path) {
       await handlePickProjectFolder()
       return
     }
+
     setProjectError('')
     setIsAddingProject(true)
     try {
@@ -73,6 +70,7 @@ export default function Sidebar({
       setCustomPath('')
       await handleProjectChange(result?.project || null)
       await onProjectsRefresh?.()
+      setChatScope('project')
     } catch (err) {
       setProjectError(err.message || 'Failed to add project')
     } finally {
@@ -92,6 +90,7 @@ export default function Sidebar({
       const pickedProject = result?.project || null
       if (pickedProject?.path) {
         setCustomPath(pickedProject.path)
+        setChatScope('project')
       }
       await handleProjectChange(pickedProject)
       await onProjectsRefresh?.()
@@ -103,183 +102,180 @@ export default function Sidebar({
   }
 
   return (
-    <aside className={`
-      ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-      md:translate-x-0
-      fixed md:relative
-      z-40 md:z-auto
-      flex-shrink-0
-      h-full
-      bg-[#27272a] text-zinc-300
-      flex flex-col
-      transition-all duration-500 ease-out
-      border-r border-zinc-800/50
-      md:shadow-lg md:shadow-black/15
-      ${expanded ? 'w-[260px]' : 'w-[68px]'}
-    `}>
-      {/* Top Header */}
-      <div className={`flex items-center px-4 pt-4 pb-2 ${expanded ? 'justify-between' : 'justify-center'}`}>
+    <aside
+      className={[
+        'app-sidebar-panel fixed inset-y-0 left-0 z-40 flex w-[88vw] max-w-[320px] flex-col',
+        'transition-transform duration-300 md:relative md:w-[300px] md:max-w-none',
+        sidebarOpen || !isMobile ? 'translate-x-0' : '-translate-x-full',
+      ].join(' ')}
+    >
+      <div className="flex items-center justify-between px-4 pb-3 pt-5">
         <button
-          onClick={toggleExpanded}
-          className="flex items-center gap-2 rounded-md p-1.5 -ml-1.5 hover:bg-zinc-800/50 transition-colors"
-          title={expanded ? 'Collapse Sidebar' : 'Expand Sidebar'}
+          onClick={() => {
+            onNewChat?.()
+            if (isMobile) onCloseSidebar?.()
+          }}
+          className="flex items-center gap-3 rounded-2xl px-2 py-1.5 transition hover:bg-white/[0.04]"
         >
-          <div className="w-6 h-6 rounded flex items-center justify-center text-amber-500 font-serif italic font-bold">
-            <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
-            </svg>
+          <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-amber-400/25 bg-amber-500/10 text-amber-300 shadow-[0_0_0_1px_rgba(245,158,11,0.06)]">
+            <Sparkles className="h-4.5 w-4.5" />
           </div>
-          {expanded && <span className="font-semibold text-zinc-100 text-[15px]">OpenTop</span>}
+          <div className="text-left">
+            <p className="text-sm font-semibold text-[var(--color-app-text)]">OpenTop</p>
+            <p className="text-xs text-[var(--color-app-muted)]">Mobile agent control</p>
+          </div>
         </button>
 
-        {expanded && !isMobile && (
+        {isMobile && (
           <button
-            onClick={toggleExpanded}
-            className="p-1.5 text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/50 rounded-md transition-colors"
-            title="Collapse Sidebar"
+            onClick={onCloseSidebar}
+            className="rounded-xl border border-white/8 bg-white/[0.03] p-2 text-[var(--color-app-muted)] transition hover:bg-white/[0.08] hover:text-[var(--color-app-text)]"
+            aria-label="Close sidebar"
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="15 18 9 12 15 6"></polyline>
-            </svg>
+            <X className="h-4 w-4" />
           </button>
         )}
-
-        {/* Mobile close button */}
-        <button
-          className="md:hidden p-1.5 text-zinc-500 hover:text-zinc-200"
-          onClick={onCloseSidebar}
-        >✕</button>
       </div>
 
-      {!expanded && (
-        <div className="px-3 pt-1 flex justify-center">
-          <button
-            onClick={toggleExpanded}
-            className="w-10 h-10 flex items-center justify-center rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/70 transition-colors"
-            title="Open Sidebar"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="3" y1="6" x2="21" y2="6"></line>
-              <line x1="3" y1="12" x2="21" y2="12"></line>
-              <line x1="3" y1="18" x2="21" y2="18"></line>
-            </svg>
-          </button>
-        </div>
-      )}
-
-      {/* New Chat Button */}
-      <div className={`px-3 pt-2 ${!expanded && 'flex justify-center'}`}>
+      <div className="px-4">
         <button
-          onClick={() => onNewChat(null)}
-          className={`
-            flex items-center gap-2 py-2 rounded-lg
-            text-sm text-zinc-300 hover:bg-zinc-800/70 hover:text-zinc-100
-            transition-all duration-200 group
-            ${expanded ? 'w-full px-2' : 'w-10 justify-center'}
-          `}
-          title="New Chat"
+          onClick={() => {
+            onNewChat?.()
+            if (isMobile) onCloseSidebar?.()
+          }}
+          className="flex w-full items-center justify-between rounded-2xl border border-[var(--color-app-border)] bg-[var(--color-app-soft)] px-4 py-3 text-left text-sm text-[var(--color-app-text)] transition hover:border-[var(--color-app-border-strong)] hover:bg-[var(--color-app-hover)]"
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-500 group-hover:text-zinc-300">
-            <line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>
-          </svg>
-          {expanded && <span>New chat</span>}
+          <span className="flex items-center gap-2.5">
+            <MessageSquarePlus className="h-4.5 w-4.5 text-amber-300" />
+            New chat
+          </span>
+          <Plus className="h-4 w-4 text-[var(--color-app-muted)]" />
         </button>
       </div>
 
-      {expanded && (
-        <div className="px-3 pt-2 space-y-3">
-          <div className="px-2 flex items-center gap-1.5">
+      <div className="px-4 pb-4 pt-4">
+        <div className="rounded-2xl border border-[var(--color-app-border)] bg-white/[0.02] p-1">
+          <div className="grid grid-cols-2 gap-1 text-xs font-medium">
             <button
               onClick={() => setChatScope('all')}
-              className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-colors ${chatScope === 'all' ? 'bg-zinc-700/70 text-zinc-100' : 'text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200'}`}
+              className={[
+                'rounded-xl px-3 py-2 transition',
+                chatScope === 'all'
+                  ? 'bg-[var(--color-app-text)] text-[#181513]'
+                  : 'text-[var(--color-app-muted)] hover:bg-white/[0.04] hover:text-[var(--color-app-text)]',
+              ].join(' ')}
             >
-              All chats
+              Home chats
             </button>
             <button
               onClick={() => setChatScope('project')}
-              className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-colors ${chatScope === 'project' ? 'bg-zinc-700/70 text-zinc-100' : 'text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200'}`}
+              className={[
+                'rounded-xl px-3 py-2 transition',
+                chatScope === 'project'
+                  ? 'bg-[var(--color-app-text)] text-[#181513]'
+                  : 'text-[var(--color-app-muted)] hover:bg-white/[0.04] hover:text-[var(--color-app-text)]',
+              ].join(' ')}
             >
               Project chats
             </button>
           </div>
+        </div>
+      </div>
 
-          {chatScope === 'project' && (
-            <div className="px-2 space-y-2.5 pt-0.5">
-              {activeProject?.path && (
-                <div className="px-2 py-1 rounded-md bg-zinc-900/60 border border-zinc-800/70 text-[11px]">
-                  <p className="text-zinc-300 truncate" title={activeProject.name}>{activeProject.name}</p>
-                  <p className="text-zinc-500 truncate" title={activeProject.path}>{activeProject.path}</p>
-                </div>
-              )}
-
+      {chatScope === 'project' && (
+        <div className="px-4 pb-4">
+          <div className="rounded-[22px] border border-[var(--color-app-border)] bg-[var(--color-app-soft)] p-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-[0.22em] text-[var(--color-app-muted)]">
+                  Active project
+                </p>
+                {activeProject?.path ? (
+                  <>
+                    <p className="mt-2 text-sm font-semibold text-[var(--color-app-text)]">
+                      {activeProject.name}
+                    </p>
+                    <p className="mt-1 break-words text-xs text-[var(--color-app-muted)]">
+                      {activeProject.path}
+                    </p>
+                  </>
+                ) : (
+                  <p className="mt-2 text-sm text-[var(--color-app-muted)]">
+                    Pick a folder to keep this conversation scoped to a project.
+                  </p>
+                )}
+              </div>
               <button
                 onClick={handlePickProjectFolder}
                 disabled={isAddingProject}
-                className="w-full text-left px-2 py-1.5 text-xs rounded-md text-zinc-300 bg-zinc-800/70 hover:bg-zinc-700/70 disabled:opacity-50 transition-colors"
+                className="rounded-xl border border-white/8 bg-white/[0.04] p-2 text-[var(--color-app-muted)] transition hover:bg-white/[0.08] hover:text-[var(--color-app-text)] disabled:opacity-50"
+                aria-label="Choose a project folder"
               >
-                {isAddingProject ? 'Opening folder picker...' : 'Choose folder from Mac'}
+                <FolderOpen className="h-4 w-4" />
               </button>
+            </div>
 
-              <div className="flex gap-1.5">
+            <div className="mt-3 flex gap-2">
+              <div className="relative min-w-0 flex-1">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--color-app-muted)]" />
                 <input
                   value={customPath}
                   onChange={(e) => setCustomPath(e.target.value)}
-                  placeholder="/Users/.../your-project"
-                  className="flex-1 min-w-0 px-2 py-1.5 rounded-md bg-zinc-900 border border-zinc-700/70 text-[11px] text-zinc-200 placeholder:text-zinc-500 outline-none focus:border-zinc-500"
+                  placeholder="/Users/.../project-folder"
+                  className="w-full rounded-2xl border border-[var(--color-app-border)] bg-[rgba(12,10,9,0.55)] py-2.5 pl-9 pr-3 text-xs text-[var(--color-app-text)] outline-none transition placeholder:text-[var(--color-app-muted)] focus:border-[var(--color-app-border-strong)]"
                 />
-                <button
-                  onClick={handleAddCustomProject}
-                  disabled={isAddingProject}
-                  className="px-2 py-1.5 rounded-md text-xs text-zinc-200 bg-zinc-700 hover:bg-zinc-600 disabled:opacity-50 transition-colors"
-                >
-                  Add
-                </button>
               </div>
-
-              {projectError && (
-                <p className="text-[11px] text-rose-400">{projectError}</p>
-              )}
+              <button
+                onClick={handleAddCustomProject}
+                disabled={isAddingProject}
+                className="rounded-2xl bg-[var(--color-app-text)] px-3 py-2.5 text-xs font-semibold text-[#181513] transition hover:bg-[#fff8ef] disabled:opacity-50"
+              >
+                {isAddingProject ? 'Adding' : 'Add'}
+              </button>
             </div>
-          )}
+
+            {projectError && (
+              <p className="mt-2 text-xs text-rose-300">{projectError}</p>
+            )}
+          </div>
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-hide px-3 pb-2 pt-3">
-        {expanded && (
-          <>
-            <p className="px-2 pb-2 text-[11px] text-zinc-500 font-medium">
-              {chatScope === 'project' ? 'Project chats' : 'All chats'}
+      <div className="min-h-0 flex-1 px-3 pb-3">
+        <div className="app-fade-mask h-full overflow-y-auto scrollbar-thin px-1">
+          <div className="mb-3 flex items-center justify-between px-3 pt-1">
+            <p className="text-xs font-medium uppercase tracking-[0.22em] text-[var(--color-app-muted)]">
+              {chatScope === 'project' ? 'Project sessions' : 'Recent chats'}
             </p>
-            {displayedSessions.length === 0 ? (
-              <p className="px-2 py-2 text-sm text-zinc-500">
-                {chatScope === 'project' ? 'No project chats yet' : 'No chats yet'}
-              </p>
-            ) : (
-              <div className="space-y-[2px]">
-                {displayedSessions.map((session) => (
-                  <SessionItem
-                    key={session.sessionId}
-                    session={session}
-                    active={session.sessionId === activeSessionId}
-                    isGenerating={session.sessionId === activeGeneratingSessionId}
-                    onClick={() => {
-                      onSelectSession?.(session.sessionId)
-                      if (isMobile) onCloseSidebar?.()
-                    }}
-                    isExpanded={expanded}
-                  />
-                ))}
-              </div>
-            )}
-          </>
-        )}
+            <p className="text-xs text-[var(--color-app-muted)]">{displayedSessions.length}</p>
+          </div>
+
+          {displayedSessions.length === 0 ? (
+            <div className="mx-2 rounded-[22px] border border-dashed border-[var(--color-app-border)] bg-white/[0.02] px-4 py-5 text-sm text-[var(--color-app-muted)]">
+              {chatScope === 'project'
+                ? 'No project chat yet. Choose a folder and start the first conversation.'
+                : 'No chats yet. Start a fresh conversation from here.'}
+            </div>
+          ) : (
+            <div className="space-y-1.5 px-1 pb-6">
+              {displayedSessions.map((session) => (
+                <SessionItem
+                  key={session.sessionId}
+                  session={session}
+                  active={session.sessionId === activeSessionId}
+                  isGenerating={session.sessionId === activeGeneratingSessionId}
+                  onClick={() => {
+                    onSelectSession?.(session.sessionId)
+                    if (isMobile) onCloseSidebar?.()
+                  }}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Footer replacing ProfileMenu & SystemStatus */}
-      <SidebarFooter
-        isExpanded={expanded}
-        onCollapsedProfileClick={isMobile ? undefined : toggleExpanded}
-      />
+      <SidebarFooter />
     </aside>
   )
 }

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { api } from '@/lib/api'
 import { useApp } from '@/context/AppContext'
 
-export default function SystemStatus({ isExpanded = true }) {
+export default function SystemStatus() {
   const { serverUrl, isConnected } = useApp()
   const [usage, setUsage] = useState(null)
 
@@ -95,49 +95,40 @@ export default function SystemStatus({ isExpanded = true }) {
 
   const usageDisplay = normalizeUsage(usage)
 
-  if (!isExpanded) {
-    return (
-      <div className="w-full flex justify-center py-4" title={isConnected ? `Connected: ${displayUrl}` : 'Disconnected'}>
-        <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500/80 shadow-[0_0_8px_rgba(34,197,94,0.4)]' : 'bg-red-500/80'}`} />
-      </div>
-    )
-  }
-
   return (
-    <div className="w-full px-4 py-2 flex flex-col gap-1.5 opacity-90 transition-opacity hover:opacity-100">
-      <div className="flex items-center gap-2">
-         <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isConnected ? 'bg-green-500/80 shadow-[0_0_8px_rgba(34,197,94,0.4)]' : 'bg-red-500/80'}`} />
-         <div className="flex flex-col">
-            <span className="text-[11px] text-zinc-300 font-medium tracking-wide">
-              {isConnected ? 'Connected' : 'Disconnected'}
-            </span>
-            {isConnected && (
-               <span className="text-[10px] text-zinc-500 -mt-0.5 max-w-[150px] truncate">
-                 {displayUrl}
-               </span>
-            )}
-         </div>
+    <div className="rounded-[22px] border border-white/6 bg-black/10 p-3">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-[0.22em] text-[var(--color-app-muted)]">
+            Connection
+          </p>
+          <p className="mt-1 text-sm font-medium text-[var(--color-app-text)]">
+            {isConnected ? 'Connected' : 'Disconnected'}
+          </p>
+          <p className="mt-1 truncate text-xs text-[var(--color-app-muted)]">
+            {displayUrl}
+          </p>
+        </div>
+        <div className={`h-2.5 w-2.5 rounded-full ${isConnected ? 'bg-emerald-400 shadow-[0_0_12px_rgba(74,222,128,0.45)]' : 'bg-rose-400'}`} />
       </div>
-      
+
       {isConnected && (
-        <div className="flex flex-col gap-1 pl-3.5 mt-0.5">
-           <span className="text-[10px] text-zinc-500 font-mono tracking-tight">
-              {usageDisplay.label}
-           </span>
-           {usageDisplay.subLabel && (
-             <span className="text-[10px] text-zinc-600 -mt-0.5">
-               {usageDisplay.subLabel}
-             </span>
-           )}
-           <div className="w-20 h-[2px] bg-zinc-800 rounded-full overflow-hidden">
-              <div 
-                className={`h-full rounded-full transition-all duration-500 ${usageDisplay.unlimited ? 'bg-emerald-500/80' : 'bg-zinc-500'}`}
-                style={{ width: `${usageDisplay.percent}%` }}
-              />
-           </div>
+        <div className="mt-3 rounded-2xl border border-white/6 bg-white/[0.03] p-3">
+          <div className="flex items-center justify-between gap-2 text-xs">
+            <span className="text-[var(--color-app-muted)]">Usage</span>
+            <span className="font-mono text-[var(--color-app-text)]">{usageDisplay.label}</span>
+          </div>
+          {usageDisplay.subLabel && (
+            <p className="mt-1 text-xs text-[var(--color-app-muted)]">{usageDisplay.subLabel}</p>
+          )}
+          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/8">
+            <div
+              className={`h-full rounded-full transition-all duration-500 ${usageDisplay.unlimited ? 'bg-emerald-400' : 'bg-amber-300'}`}
+              style={{ width: `${usageDisplay.percent}%` }}
+            />
+          </div>
         </div>
       )}
     </div>
   )
 }
-

@@ -1,9 +1,10 @@
 import React, { useState } from 'react'
 import { createPortal } from 'react-dom'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion as Motion, AnimatePresence } from 'framer-motion'
 import GeneralSettings from './Settings/GeneralSettings'
 import MemorySettings from './Settings/MemorySettings'
 import ConnectionSettings from './Settings/ConnectionSettings'
+import PermissionSettings from './Settings/PermissionSettings'
 
 const TABS = [
   { id: 'general', label: 'General', icon: (
@@ -22,6 +23,12 @@ const TABS = [
       <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
       <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
     </svg>
+  )},
+  { id: 'permissions', label: 'Permissions', icon: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3l7 4v5c0 5-3.5 9-7 10-3.5-1-7-5-7-10V7l7-4z"></path>
+      <path d="M9.5 12.5l1.5 1.5 3.5-3.5"></path>
+    </svg>
   )}
 ]
 
@@ -31,8 +38,8 @@ export default function SettingsModal({ isOpen, onClose }) {
   return createPortal(
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-0 md:p-6">
-          <motion.div
+        <div className="fixed inset-0 z-100 flex items-center justify-center p-0 md:p-6">
+          <Motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -41,7 +48,7 @@ export default function SettingsModal({ isOpen, onClose }) {
             onClick={onClose}
           />
         
-        <motion.div
+        <Motion.div
           initial={{ opacity: 0, scale: 0.96, y: 10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.96, y: 10 }}
@@ -72,7 +79,7 @@ export default function SettingsModal({ isOpen, onClose }) {
           </div>
 
           {/* Desktop Sidebar */}
-          <div className="hidden md:flex flex-col w-64 border-r border-zinc-800/60 bg-[#1a1a1a] flex-shrink-0">
+          <div className="hidden md:flex flex-col w-64 border-r border-zinc-800/60 bg-[#1a1a1a] shrink-0">
             <h2 className="px-5 py-5 text-xl font-semibold text-zinc-100">Settings</h2>
             <nav className="flex-1 px-3 space-y-1">
               {TABS.map(tab => (
@@ -98,7 +105,7 @@ export default function SettingsModal({ isOpen, onClose }) {
           {/* Main Content Area */}
           <div className="flex-1 flex flex-col min-w-0 bg-[#212121]">
              {/* Desktop Close Button */}
-             <div className="hidden md:flex justify-between items-center px-8 py-5 flex-shrink-0 border-b border-zinc-800/30">
+             <div className="hidden md:flex justify-between items-center px-8 py-5 shrink-0 border-b border-zinc-800/30">
                <h3 className="text-lg font-medium text-zinc-100">{TABS.find(t => t.id === activeTab)?.label}</h3>
                <button 
                   onClick={onClose} 
@@ -116,9 +123,10 @@ export default function SettingsModal({ isOpen, onClose }) {
                 {activeTab === 'general' && <GeneralSettings />}
                 {activeTab === 'memory' && <MemorySettings />}
                 {activeTab === 'connection' && <ConnectionSettings />}
+                 {activeTab === 'permissions' && <PermissionSettings />}
              </div>
           </div>
-        </motion.div>
+        </Motion.div>
         </div>
       )}
     </AnimatePresence>,

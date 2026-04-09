@@ -1,103 +1,115 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
+import { AnimatePresence } from 'framer-motion'
+import { FolderOpen, Menu, MessageSquarePlus } from 'lucide-react'
 import { useApp } from '@/context/AppContext'
 import MessageBubble from './MessageBubble'
 import TypingIndicator from './TypingIndicator'
 import EmptyChat from './EmptyChat'
 import ChatInput from './ChatInput'
-import { AnimatePresence } from 'framer-motion'
 
-export default function ChatView({ sessionId, serverUrl, onBack, onOpenSidebar }) {
+export default function ChatView({ sessionId, onOpenSidebar }) {
   const { sessions, messages, sendMessage, isSending, sendError } = useApp()
   const [input, setInput] = useState('')
-  
-  const messagesEndRef = useRef(null)
   const bottomRef = useRef(null)
 
-  const session = sessions.find(s => s.sessionId === sessionId)
-  const isLoading = isSending
-  const isTyping = isSending
+  const session = sessions.find((item) => item.sessionId === sessionId)
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, isTyping])
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
+  }, [messages, isSending])
 
   const handleSend = async (text, model) => {
-    if (!text.trim() || isLoading) return
+    if (!text.trim() || isSending) return
+
     const currentInput = text
     setInput('')
+
     try {
       await sendMessage(currentInput, { model })
-    } catch (e) {
-      console.error(e)
+    } catch (error) {
+      console.error(error)
     }
   }
 
   return (
-    <div className="flex flex-col h-full bg-[#18181b] relative">
-      <button
-        className="md:hidden absolute top-4 left-4 z-10 p-2 rounded text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50 transition-colors"
-        onClick={onOpenSidebar}
-      >
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <line x1="3" y1="12" x2="21" y2="12"></line>
-          <line x1="3" y1="6" x2="21" y2="6"></line>
-        </svg>
-      </button>
+    <div className="relative flex h-full min-h-screen flex-col bg-[rgba(20,18,16,0.72)] md:min-h-0">
+      <header className="sticky top-0 z-20 border-b border-white/6 bg-[linear-gradient(180deg,rgba(24,21,19,0.95),rgba(24,21,19,0.82))] px-4 py-4 backdrop-blur-xl md:px-8">
+        <div className="mx-auto flex max-w-4xl items-center gap-3">
+          <button
+            className="rounded-2xl border border-white/8 bg-white/[0.04] p-2 text-[var(--color-app-muted)] transition hover:bg-white/[0.08] hover:text-[var(--color-app-text)] md:hidden"
+            onClick={onOpenSidebar}
+            aria-label="Open sidebar"
+          >
+            <Menu className="h-4.5 w-4.5" />
+          </button>
 
-      {/* Main Chat Area */}
-      <div className="flex-1 overflow-y-auto scrollbar-hide pt-4 md:pt-6" ref={messagesEndRef}>
-        <div className="max-w-3xl mx-auto px-4 md:px-6 w-full flex flex-col min-h-full">
-          <div className="flex-1 pb-8 pt-4">
-            {sendError && (
-              <div className="mb-4 rounded-lg border border-rose-900/60 bg-rose-950/50 px-3 py-2 text-sm text-rose-200">
-                <p className="font-medium">Message failed to send</p>
-                <p className="mt-1 text-rose-300/90">{sendError}</p>
-              </div>
-            )}
-
-            {session?.project?.path && (
-              <div className="mb-4 rounded-lg border border-zinc-800/80 bg-zinc-900/50 px-3 py-2">
-                <p className="text-zinc-300 text-sm font-medium truncate" title={session.project.name}>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold text-[var(--color-app-text)]">
+              {session?.title || session?.name || 'OpenTop conversation'}
+            </p>
+            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[var(--color-app-muted)]">
+              <span>{session?.model || 'claude-sonnet-4.5'}</span>
+              {session?.project?.path && (
+                <span className="inline-flex items-center gap-1 rounded-full border border-white/8 bg-white/[0.04] px-2 py-1">
+                  <FolderOpen className="h-3.5 w-3.5" />
                   {session.project.name}
-                </p>
-                <p className="text-zinc-500 text-xs truncate" title={session.project.path}>
-                  {session.project.path}
-                </p>
-              </div>
-            )}
-
-            {messages.length === 0 ? (
-              <div className="flex-1 flex flex-col justify-center">
-                 <EmptyChat sessionName={session?.name} project={session?.project} />
-              </div>
-            ) : (
-              <div className="space-y-10">
-                <AnimatePresence initial={false}>
-                  {messages.map((msg, i) => (
-                    <MessageBubble key={i} message={msg} sessionModel={session?.model || null} />
-                  ))}
-                </AnimatePresence>
-              </div>
-            )}
-
-            {isTyping && (
-              <div className={messages.length === 0 ? 'mt-6' : 'mt-10'}>
-                <TypingIndicator />
-              </div>
-            )}
+                </span>
+              )}
+            </div>
           </div>
-          <div ref={bottomRef} className="h-6" />
+
+          <div className="hidden rounded-full border border-white/8 bg-white/[0.03] px-3 py-1.5 text-xs text-[var(--color-app-muted)] md:flex">
+            Synced with your Mac
+          </div>
+        </div>
+      </header>
+
+      <div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin">
+        <div className="mx-auto flex min-h-full max-w-4xl flex-col px-4 pb-36 pt-6 md:px-8 md:pt-8">
+          {sendError && (
+            <div className="mb-6 rounded-[22px] border border-rose-400/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-100">
+              <p className="font-medium">Message failed to send</p>
+              <p className="mt-1 text-rose-200/80">{sendError}</p>
+            </div>
+          )}
+
+          {messages.length === 0 ? (
+            <div className="flex flex-1 items-center justify-center py-8">
+              <EmptyChat sessionName={session?.name} project={session?.project} />
+            </div>
+          ) : (
+            <div className="space-y-1">
+              <AnimatePresence initial={false}>
+                {messages.map((message, index) => (
+                  <MessageBubble
+                    key={`${message.timestamp || index}-${message.role}-${index}`}
+                    message={message}
+                    sessionModel={session?.model || null}
+                  />
+                ))}
+              </AnimatePresence>
+
+              {isSending && <TypingIndicator />}
+            </div>
+          )}
+
+          <div ref={bottomRef} />
         </div>
       </div>
 
-      {/* Input Area */}
-      <div className="pb-6 pt-2 px-4 md:px-6 bg-linear-to-t from-[#18181b] via-[#18181b] to-transparent">
-        <div className="max-w-3xl mx-auto">
-          <ChatInput 
-            input={input} 
-            setInput={setInput} 
-            onSend={handleSend} 
-            isLoading={isLoading} 
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-20 bg-[linear-gradient(180deg,transparent,rgba(20,18,16,0.92)_30%,rgba(20,18,16,1)_100%)] px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-10 md:absolute md:px-8">
+        <div className="pointer-events-auto mx-auto max-w-4xl">
+          {messages.length > 0 && (
+            <div className="mb-3 hidden items-center gap-2 text-xs text-[var(--color-app-muted)] md:flex">
+              <MessageSquarePlus className="h-3.5 w-3.5" />
+              Ask a follow-up, switch models, or keep working in this session.
+            </div>
+          )}
+          <ChatInput
+            input={input}
+            setInput={setInput}
+            onSend={handleSend}
+            isLoading={isSending}
             initialModel={session?.model || null}
           />
         </div>

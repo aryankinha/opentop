@@ -14,6 +14,14 @@ const CONFIG_PATH = join(CONFIG_DIR, 'config.json');
 
 export { CONFIG_DIR, CONFIG_PATH };
 
+export const PERMISSION_TOOL_KINDS = Object.freeze([
+  'read',
+  'shell',
+  'write',
+  'url',
+  'mcp',
+]);
+
 const DEFAULT_CONFIG = {
   deviceName: generateDeviceName(), // Auto-generated on first run
   displayName: null, // User's display name (auto-generated if null)
@@ -48,6 +56,35 @@ const DEFAULT_CONFIG = {
     cachedToken: null,          // The locally cached GitHub token
   },
 };
+
+function normalizePermissionToolList(value, fallback = []) {
+  if (!Array.isArray(value)) {
+    return [...fallback];
+  }
+
+  return [...new Set(
+    value
+      .filter((item) => typeof item === 'string')
+      .map((item) => item.trim().toLowerCase())
+      .filter((item) => PERMISSION_TOOL_KINDS.includes(item)),
+  )];
+}
+
+function buildRequireApprovalTools(autoApproveTools) {
+  return PERMISSION_TOOL_KINDS.filter((kind) => !autoApproveTools.includes(kind));
+}
+
+function readConfigFileOrEmpty() {
+  if (!existsSync(CONFIG_PATH)) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(readFileSync(CONFIG_PATH, 'utf-8'));
+  } catch {
+    return {};
+  }
+}
 
 function createDefaultConfig() {
   return {
@@ -107,9 +144,15 @@ function loadConfig() {
     const userConfig = JSON.parse(raw);
     // Merge with defaults so new keys are always present
     const defaults = createDefaultConfig();
+    const autoApproveTools = normalizePermissionToolList(
+      userConfig.autoApproveTools,
+      defaults.autoApproveTools,
+    );
     const merged = {
       ...defaults,
       ...userConfig,
+      autoApproveTools,
+      requireApprovalTools: buildRequireApprovalTools(autoApproveTools),
       tunnel: {
         ...defaults.tunnel,
         ...(userConfig.tunnel || {}),
@@ -168,6 +211,13 @@ export function validateConfig(cfg) {
     });
     cfg.keepRecentMessages = DEFAULT_CONFIG.keepRecentMessages;
   }
+
+  // Permission policy arrays
+  cfg.autoApproveTools = normalizePermissionToolList(
+    cfg.autoApproveTools,
+    DEFAULT_CONFIG.autoApproveTools,
+  );
+  cfg.requireApprovalTools = buildRequireApprovalTools(cfg.autoApproveTools);
 }
 
 export const config = loadConfig();
@@ -204,6 +254,50 @@ export async function setDeviceName(name) {
   current.deviceName = name;
   writeFileSync(CONFIG_PATH, JSON.stringify(current, null, 2), 'utf-8');
   logger.info('Device name updated', { name });
+}
+
+/**
+ * Returns permission policy for tool approvals.
+ * @returns {{ availableTools: string[], autoApproveTools: string[], requireApprovalTools: string[] }}
+ */
+export function getPermissionPolicy() {
+  const autoApproveTools = normalizePermissionToolList(
+    config.autoApproveTools,
+    DEFAULT_CONFIG.autoApproveTools,
+  );
+
+  return {
+    availableTools: [...PERMISSION_TOOL_KINDS],
+    autoApproveTools,
+    requireApprovalTools: buildRequireApprovalTools(autoApproveTools),
+  };
+}
+
+/**
+ * Updates and persists auto-approval tool kinds.
+ * @param {string[]} autoApproveTools - Tool kinds to always allow.
+ * @returns {{ availableTools: string[], autoApproveTools: string[], requireApprovalTools: string[] }}
+ */
+export function setPermissionPolicy(autoApproveTools) {
+  if (!Array.isArray(autoApproveTools)) {
+    throw new Error('autoApproveTools must be an array');
+  }
+
+  const normalizedAutoApproveTools = normalizePermissionToolList(autoApproveTools, []);
+  config.autoApproveTools = normalizedAutoApproveTools;
+  config.requireApprovalTools = buildRequireApprovalTools(normalizedAutoApproveTools);
+
+  const current = readConfigFileOrEmpty();
+  current.autoApproveTools = [...config.autoApproveTools];
+  current.requireApprovalTools = [...config.requireApprovalTools];
+
+  writeFileSync(CONFIG_PATH, JSON.stringify(current, null, 2), 'utf-8');
+  logger.info('Permission policy updated', {
+    autoApproveTools: config.autoApproveTools,
+    requireApprovalTools: config.requireApprovalTools,
+  });
+
+  return getPermissionPolicy();
 }
 
 // ─── Display name helpers ────────────────────────────────────────────

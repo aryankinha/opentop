@@ -38,6 +38,11 @@ import {
 } from '../core/globalMemory.js';
 import { generateQuickTitle, generateRefinedTitle, sanitizeTitle } from '../core/titleGenerator.js';
 import { trackUsage, getUsage, getDailyHistory, getSessionUsage } from '../core/usageTracker.js';
+import {
+  PERMISSION_TOOL_KINDS,
+  getPermissionPolicy,
+  setPermissionPolicy,
+} from '../config.js';
 import logger from '../utils/logger.js';
 
 // Patterns to detect memory-save signals in assistant responses
@@ -809,6 +814,45 @@ Do not respond to this message - just acknowledge with "Ready."`;
         error: 'Failed to update display name',
         message: err.message 
       });
+    }
+  });
+
+  // ─── GET /settings/permissions ─────────────────────────────────
+  // Returns tool permission policy used by the approval broker.
+  router.get('/settings/permissions', (_req, res, next) => {
+    try {
+      res.json(getPermissionPolicy());
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // ─── PATCH /settings/permissions ───────────────────────────────
+  // Updates tool kinds that should be auto-approved.
+  router.patch('/settings/permissions', (req, res, next) => {
+    try {
+      const { autoApproveTools } = req.body || {};
+
+      if (!Array.isArray(autoApproveTools)) {
+        return res.status(400).json({ error: 'autoApproveTools must be an array of tool kinds' });
+      }
+
+      const normalized = autoApproveTools
+        .filter((item) => typeof item === 'string')
+        .map((item) => item.trim().toLowerCase());
+      const invalidKinds = normalized.filter((kind) => !PERMISSION_TOOL_KINDS.includes(kind));
+
+      if (invalidKinds.length > 0) {
+        return res.status(400).json({
+          error: `Unsupported tool kinds: ${[...new Set(invalidKinds)].join(', ')}`,
+          supportedKinds: PERMISSION_TOOL_KINDS,
+        });
+      }
+
+      const policy = setPermissionPolicy(normalized);
+      res.json({ success: true, ...policy });
+    } catch (err) {
+      next(err);
     }
   });
 

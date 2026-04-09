@@ -265,8 +265,10 @@ export function AppProvider({ children }) {
     try {
       await api.getHealth()
       dispatch({ type: actions.SET_CONNECTED, payload: true })
+      return { ok: true, error: null }
     } catch (error) {
       dispatch({ type: actions.SET_CONNECTION_ERROR, payload: error.message })
+      return { ok: false, error: error.message }
     }
   }, [])
 
