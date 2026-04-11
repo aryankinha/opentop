@@ -296,9 +296,7 @@ function AppContent() {
     : null
 
   return (
-    <div className="relative flex min-h-screen overflow-hidden bg-[var(--color-app-bg)] text-[var(--color-app-text)]">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(245,158,11,0.08),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(120,113,108,0.12),transparent_24%)]" />
-
+    <div className="flex h-screen w-screen overflow-hidden bg-[var(--color-app-bg)] text-[var(--color-app-text)]">
       {sidebarOpen && isMobile && (
         <div 
           className="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm md:hidden" 
@@ -323,29 +321,25 @@ function AppContent() {
         generatingSessionId={generatingSessionId}
       />
 
-      <main className="relative z-10 flex min-w-0 flex-1 flex-col">
-        <div className="flex min-h-screen flex-1 p-0 md:p-4">
-          <div className="flex min-h-screen flex-1 flex-col overflow-hidden md:min-h-0 md:rounded-[28px] md:border md:border-[var(--color-app-border)]/70 md:bg-[rgba(24,21,19,0.82)] md:shadow-[0_24px_80px_rgba(0,0,0,0.35)]">
-            {activeSessionId ? (
-              <ChatView
-                sessionId={activeSessionId}
-                serverUrl={serverUrl}
-                onBack={handleNewChat}
-                onOpenSidebar={onOpenSidebar}
-              />
-            ) : (
-              <EmptyState
-                onNewChat={handleNewChat}
-                onOpenSidebar={onOpenSidebar}
-                projects={projects}
-                activeProject={activeProject}
-                serverUrl={serverUrl}
-                showInstallButton={isMobile && !isPWAInstalled}
-                onInstallPWA={handleInstallPWAFromNewChat}
-              />
-            )}
-          </div>
-        </div>
+      <main className="flex flex-1 flex-col min-w-0 h-screen overflow-hidden">
+        {activeSessionId ? (
+          <ChatView
+            sessionId={activeSessionId}
+            serverUrl={serverUrl}
+            onBack={handleNewChat}
+            onOpenSidebar={onOpenSidebar}
+          />
+        ) : (
+          <EmptyState
+            onNewChat={handleNewChat}
+            onOpenSidebar={onOpenSidebar}
+            projects={projects}
+            activeProject={activeProject}
+            serverUrl={serverUrl}
+            showInstallButton={isMobile && !isPWAInstalled}
+            onInstallPWA={handleInstallPWAFromNewChat}
+          />
+        )}
       </main>
 
       {permissionRequests.length > 0 && (

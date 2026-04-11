@@ -1,128 +1,96 @@
 import React, { useState } from 'react'
-import { FolderOpen, Menu, Smartphone } from 'lucide-react'
+import { Menu, PenLine, GraduationCap, Code2, Coffee, Sparkles } from 'lucide-react'
 import { useApp } from '@/context/AppContext'
 import ChatInput from './ChatInput'
 
 const SUGGESTIONS = [
-  'Summarize the current project architecture',
-  'Help me debug a failing build',
-  'Plan the next steps for this feature',
+  { text: 'Write', icon: PenLine, prompt: 'Write a poem about the sea' },
+  { text: 'Learn', icon: GraduationCap, prompt: 'Explain quantum computing to a 5 year old' },
+  { text: 'Code', icon: Code2, prompt: 'How do I center a div?' },
+  { text: 'Life stuff', icon: Coffee, prompt: 'Give me tips for better sleep' },
+  { text: "OpenTop's choice", icon: Sparkles, prompt: 'Tell me a random interesting fact' },
 ]
 
 export default function EmptyState({
   onOpenSidebar,
   activeProject = null,
-  showInstallButton = false,
-  onInstallPWA,
 }) {
-  const { sendMessage, cancelMessage, isSending, sendError } = useApp()
+  const { sendMessage, cancelMessage, isSending, user, sendError } = useApp()
   const [input, setInput] = useState('')
+  const displayName = user?.displayName || 'User'
 
   const handleSend = async (text, model) => {
     if (!text.trim() || isSending) return
-
     try {
       await sendMessage(text, { project: activeProject, model })
-    } catch (error) {
-      console.error(error)
+    } catch (e) {
+      console.error('Failed to send message:', e)
     }
   }
 
   return (
-    <div className="relative flex min-h-screen flex-1 flex-col bg-[rgba(20,18,16,0.72)] md:min-h-0">
-      <header className="sticky top-0 z-10 border-b border-white/6 bg-[linear-gradient(180deg,rgba(24,21,19,0.95),rgba(24,21,19,0.82))] px-4 py-4 backdrop-blur-xl md:px-8">
-        <div className="mx-auto flex max-w-4xl items-center gap-3">
-          <button
-            className="rounded-2xl border border-white/8 bg-white/[0.04] p-2 text-[var(--color-app-muted)] transition hover:bg-white/[0.08] hover:text-[var(--color-app-text)] md:hidden"
-            onClick={onOpenSidebar}
-            aria-label="Open sidebar"
-          >
-            <Menu className="h-4.5 w-4.5" />
-          </button>
-          <div>
-            <p className="text-sm font-semibold text-[var(--color-app-text)]">OpenTop</p>
-            <p className="text-xs text-[var(--color-app-muted)]">
-              Self-hosted agent sessions, controlled from your phone
-            </p>
-          </div>
+    <div className="flex h-full flex-col overflow-hidden bg-[var(--color-app-bg)] text-[var(--color-app-text)] font-sans">
+
+      {/* Top bar */}
+      <header className="flex items-center gap-3 px-4 py-3 md:px-6">
+        <button
+          onClick={onOpenSidebar}
+          className="md:hidden text-gray-400 hover:text-white"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+
+        <div className="text-sm font-medium text-gray-300">
+          OpenTop
         </div>
       </header>
 
-      <div className="flex flex-1 items-center justify-center px-4 py-10 md:px-8">
-        <div className="w-full max-w-4xl">
-          <div className="mx-auto max-w-3xl text-center">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[26px] border border-amber-400/20 bg-amber-500/10 text-amber-200 shadow-[0_18px_44px_rgba(245,158,11,0.12)]">
-              <svg viewBox="0 0 24 24" fill="none" className="h-8 w-8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-              </svg>
+      {/* Center content */}
+      <div className="flex flex-1 flex-col items-center justify-center px-4 -mt-16">
+
+        {/* Title */}
+        <h1 className="text-3xl font-serif text-[#e4dac5] flex items-center justify-center gap-3">
+          <Sparkles className="h-7 w-7 text-[#e58a66]" />
+          Back at it, {displayName.toLowerCase()}
+        </h1>
+
+        {/* Input */}
+        <div className="mt-8 w-full max-w-2xl">
+          {sendError && (
+            <div className="mb-4 text-sm text-red-400 text-center">
+              {sendError}
             </div>
-
-            <h1 className="mt-6 text-4xl font-semibold tracking-tight text-[var(--color-app-text)] md:text-5xl">
-              What should OpenTop do next?
-            </h1>
-            <p className="mx-auto mt-4 max-w-2xl text-sm leading-7 text-[var(--color-app-muted)] md:text-base">
-              Run coding tasks on your Mac, continue a saved chat, or scope the next session to a project so the agent stays anchored in one workspace.
-            </p>
-
-            {activeProject?.path && (
-              <div className="mx-auto mt-6 flex max-w-xl items-center gap-3 rounded-[26px] border border-white/8 bg-white/[0.04] px-4 py-3 text-left">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/8 bg-black/20 text-[var(--color-app-muted)]">
-                  <FolderOpen className="h-4.5 w-4.5" />
-                </div>
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-[var(--color-app-text)]" title={activeProject.name}>
-                    {activeProject.name}
-                  </p>
-                  <p className="mt-1 truncate text-xs text-[var(--color-app-muted)]" title={activeProject.path}>
-                    {activeProject.path}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {sendError && (
-              <div className="mx-auto mt-6 max-w-2xl rounded-[22px] border border-rose-400/20 bg-rose-500/10 px-4 py-3 text-left text-sm text-rose-100">
-                <p className="font-medium">Message failed to send</p>
-                <p className="mt-1 text-rose-200/80">{sendError}</p>
-              </div>
-            )}
-          </div>
-
-          <div className="mx-auto mt-8 max-w-3xl">
-            <div className="grid gap-3 md:grid-cols-3">
-              {SUGGESTIONS.map((suggestion) => (
-                <button
-                  key={suggestion}
-                  onClick={() => setInput(suggestion)}
-                  className="rounded-[24px] border border-[var(--color-app-border)] bg-white/[0.03] px-4 py-4 text-left text-sm text-[var(--color-app-text)] transition hover:border-[var(--color-app-border-strong)] hover:bg-white/[0.06]"
-                >
-                  {suggestion}
-                </button>
-              ))}
-            </div>
-
-            {showInstallButton && (
-              <button
-                onClick={onInstallPWA}
-                className="mt-4 inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/[0.04] px-4 py-2 text-sm text-[var(--color-app-text)] transition hover:bg-white/[0.08] md:hidden"
-              >
-                <Smartphone className="h-4 w-4" />
-                Install OpenTop app
-              </button>
-            )}
-
-            <div className="mt-6">
-              <ChatInput
-                input={input}
-                setInput={setInput}
-                onSend={handleSend}
-                onCancel={cancelMessage}
-                isLoading={isSending}
-                isInitial
-              />
-            </div>
-          </div>
+          )}
+          <ChatInput
+            input={input}
+            setInput={setInput}
+            onSend={handleSend}
+            onCancel={cancelMessage}
+            isLoading={isSending}
+            isInitial
+          />
         </div>
+
+        {/* Suggestions */}
+        <div className="mt-5 flex flex-wrap gap-2 justify-center max-w-2xl">
+          {SUGGESTIONS.map((s) => (
+            <button
+              key={s.text}
+              onClick={() => setInput(s.prompt)}
+              className="flex items-center gap-2 text-[13px] px-3 py-1.5 rounded-full border border-white/10 bg-transparent text-gray-300 hover:bg-white/5 transition-colors"
+            >
+              <s.icon className="h-3.5 w-3.5 text-gray-400" />
+              {s.text}
+            </button>
+          ))}
+        </div>
+
+        {/* Active project (minimal) */}
+        {activeProject?.path && (
+          <div className="mt-6 text-xs text-gray-500 truncate max-w-md text-center">
+            {activeProject.name} — {activeProject.path}
+          </div>
+        )}
       </div>
     </div>
   )

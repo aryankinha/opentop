@@ -35,8 +35,8 @@ export default function ChatInput({
   }
 
   return (
-    <div className={`mx-auto w-full ${isInitial ? 'max-w-3xl' : 'max-w-4xl'}`}>
-      <div className="app-panel rounded-[30px] bg-[rgba(29,25,23,0.96)] px-3 py-3 md:px-4">
+    <div className={`mx-auto w-full ${isInitial ? 'max-w-2xl' : 'max-w-3xl'}`}>
+      <div className="rounded-[24px] border border-[var(--color-app-border)] bg-[var(--color-app-soft)] px-3 py-2 md:px-4">
         <div className="flex items-end gap-3">
           <button
             className="mb-1 hidden h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/8 bg-white/[0.04] text-[var(--color-app-muted)] transition hover:bg-white/[0.08] hover:text-[var(--color-app-text)] sm:flex"
@@ -74,9 +74,9 @@ export default function ChatInput({
               className={[
                 'flex h-11 w-11 items-center justify-center rounded-2xl transition',
                 isLoading
-                  ? 'bg-amber-300 text-[#181513] hover:bg-amber-200'
+                  ? 'bg-[#da7756] text-white hover:bg-[#ca6a4b]'
                   : input.trim()
-                  ? 'bg-[var(--color-app-text)] text-[#181513] hover:bg-[#fff8ef]'
+                  ? 'bg-[var(--color-app-text)] text-[#181513] hover:bg-white'
                   : 'bg-white/[0.05] text-[var(--color-app-muted)]',
               ].join(' ')}
               aria-label={isLoading ? 'Cancel message' : 'Send message'}

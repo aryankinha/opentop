@@ -2,6 +2,8 @@
   "name": "opentop",
   "version": "0.1.11",
   "description": "Self-hosted AI agent backend powered by GitHub Copilot SDK",
+  "author": "OpenTop Contributors",
+  "license": "MIT",
   "type": "module",
   "bin": {
     "opentop": "./bin/opentop.js"
@@ -10,9 +12,8 @@
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
     "cli": "node bin/opentop.js",
-    "build:web": "cd web && npm run build -- --outDir ../src/public --emptyOutDir",
+    "build": "cd web && npm run build",
     "dev:web": "cd web && npm run dev",
-    "build": "npm run build:web",
     "postinstall": "echo 'OpenTop installed. Run: opentop doctor'"
   },
   "keywords": [

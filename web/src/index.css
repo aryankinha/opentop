@@ -1,31 +1,33 @@
 @import "tailwindcss";
 
 @theme {
-  --color-app-bg: #141210;
-  --color-app-panel: #1d1917;
-  --color-app-panel-strong: #171412;
-  --color-app-sidebar: #12100f;
-  --color-app-border: #322c27;
-  --color-app-border-strong: #453c35;
-  --color-app-text: #f5efe7;
-  --color-app-muted: #b0a79d;
-  --color-app-soft: #231f1b;
-  --color-app-hover: #2a2521;
-  --color-app-accent: #f59e0b;
+  --color-app-bg: #212121;
+  --color-app-panel: #292929;
+  --color-app-panel-strong: #333333;
+  --color-app-sidebar: #1c1c1c;
+  --color-app-border: #3d3d3d;
+  --color-app-border-strong: #4f4f4f;
+  --color-app-text: #ececec;
+  --color-app-muted: #a3a3a3;
+  --color-app-soft: #2a2a2a;
+  --color-app-hover: #3b3b3b;
+  --color-app-accent: #da7756;
   --color-app-accent-soft: #fed7aa;
 }
 
 html {
-  height: 100%;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
   color-scheme: dark;
 }
 
 body {
   margin: 0;
-  min-height: 100%;
-  background:
-    radial-gradient(circle at top, rgba(245, 158, 11, 0.08), transparent 28%),
-    linear-gradient(180deg, #171412 0%, #141210 60%, #100e0d 100%);
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  background: var(--color-app-bg, #212121);
   color: var(--color-app-text, #f5efe7);
   font-family: 'Söhne', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -33,7 +35,9 @@ body {
 }
 
 #root {
-  min-height: 100vh;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
 }
@@ -74,17 +78,12 @@ body {
 }
 
 .app-panel {
-  background: rgba(29, 25, 23, 0.92);
-  border: 1px solid rgba(69, 60, 53, 0.62);
-  box-shadow:
-    0 24px 80px rgba(0, 0, 0, 0.32),
-    inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  background: var(--color-app-bg);
 }
 
 .app-sidebar-panel {
-  background:
-    linear-gradient(180deg, rgba(24, 20, 18, 0.98), rgba(18, 16, 15, 0.98));
-  border-right: 1px solid rgba(69, 60, 53, 0.45);
+  background: var(--color-app-sidebar);
+  border-right: 1px solid var(--color-app-border);
 }
 
 .app-fade-mask {

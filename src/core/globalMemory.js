@@ -15,9 +15,9 @@ const MEMORY_TEMPLATE = `# OpenTop Global Memory
 # This file persists important facts across all sessions.
 # OpenTop automatically updates this when you ask it to remember things.
 
-- User: Aryan
-- System: macOS, home directory accessible
-- Projects: Located in ~/Documents/Aryan/Project/
+- User: Developer
+- System: Default OS environment
+- Projects: Located in your standard workspace folder
 `;
 
 // ─── Legacy single-file helpers (unchanged) ─────────────────────────

@@ -40,7 +40,9 @@ export default function Sidebar({
     return allSessions.filter((session) => Boolean(session?.project?.path))
   }, [allSessions])
 
-  const displayedSessions = chatScope === 'project' ? projectSessions : allSessions
+  const displayedSessions =
+    chatScope === 'project' ? projectSessions : allSessions
+
   const activeGeneratingSessionId = isSending
     ? (generatingSessionId || activeSessionId)
     : null
@@ -100,177 +102,137 @@ export default function Sidebar({
   return (
     <aside
       className={[
-        'app-sidebar-panel fixed inset-y-0 left-0 z-40 flex w-[88vw] max-w-[320px] flex-col',
-        'transition-transform duration-300 md:relative md:w-[300px] md:max-w-none',
+        'fixed inset-y-0 left-0 z-40 flex w-[260px] flex-col bg-[var(--color-app-sidebar)] border-r border-[var(--color-app-border)]',
+        'transition-transform duration-300 md:relative',
         sidebarOpen || !isMobile ? 'translate-x-0' : '-translate-x-full',
       ].join(' ')}
     >
-      <div className="flex items-center justify-between px-4 pb-3 pt-5">
-        <button
-          onClick={() => {
-            onNewChat?.()
-            if (isMobile) onCloseSidebar?.()
-          }}
-          className="flex items-center gap-3 rounded-2xl px-2 py-1.5 transition hover:bg-white/[0.04]"
-        >
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-amber-400/25 bg-amber-500/10 text-amber-300 shadow-[0_0_0_1px_rgba(245,158,11,0.06)]">
-            <Sparkles className="h-4.5 w-4.5" />
-          </div>
-          <div className="text-left">
-            <p className="text-sm font-semibold text-[var(--color-app-text)]">OpenTop</p>
-            <p className="text-xs text-[var(--color-app-muted)]">Mobile agent control</p>
-          </div>
-        </button>
+      {/* Top Header */}
+      <div className="flex items-center justify-between px-4 py-4">
+        <div className="font-serif text-lg text-white font-medium pl-1">
+          OpenTop
+        </div>
 
         {isMobile && (
           <button
             onClick={onCloseSidebar}
-            className="rounded-xl border border-white/8 bg-white/[0.03] p-2 text-[var(--color-app-muted)] transition hover:bg-white/[0.08] hover:text-[var(--color-app-text)]"
-            aria-label="Close sidebar"
+            className="text-gray-400 hover:text-white"
           >
             <X className="h-4 w-4" />
           </button>
         )}
       </div>
 
-      <div className="px-4">
+      {/* New Chat */}
+      <div className="px-3 mb-4">
         <button
           onClick={() => {
             onNewChat?.()
             if (isMobile) onCloseSidebar?.()
           }}
-          className="flex w-full items-center justify-between rounded-2xl border border-[var(--color-app-border)] bg-[var(--color-app-soft)] px-4 py-3 text-left text-sm text-[var(--color-app-text)] transition hover:border-[var(--color-app-border-strong)] hover:bg-[var(--color-app-hover)]"
+          className="flex w-full items-center gap-2 px-2 py-1.5 text-sm font-medium text-gray-200 hover:bg-white/5 rounded-md transition-colors"
         >
-          <span className="flex items-center gap-2.5">
-            <MessageSquarePlus className="h-4.5 w-4.5 text-amber-300" />
-            New chat
-          </span>
-          <Plus className="h-4 w-4 text-[var(--color-app-muted)]" />
+          <div className="flex h-5 w-5 items-center justify-center rounded-full bg-white/10 text-white">
+            <Plus className="h-3 w-3" />
+          </div>
+          New chat
         </button>
       </div>
 
-      <div className="px-4 pb-4 pt-4">
-        <div className="rounded-2xl border border-[var(--color-app-border)] bg-white/[0.02] p-1">
-          <div className="grid grid-cols-2 gap-1 text-xs font-medium">
-            <button
-              onClick={() => setChatScope('all')}
-              className={[
-                'rounded-xl px-3 py-2 transition',
-                chatScope === 'all'
-                  ? 'bg-[var(--color-app-text)] text-[#181513]'
-                  : 'text-[var(--color-app-muted)] hover:bg-white/[0.04] hover:text-[var(--color-app-text)]',
-              ].join(' ')}
-            >
-              Home chats
-            </button>
-            <button
-              onClick={() => setChatScope('project')}
-              className={[
-                'rounded-xl px-3 py-2 transition',
-                chatScope === 'project'
-                  ? 'bg-[var(--color-app-text)] text-[#181513]'
-                  : 'text-[var(--color-app-muted)] hover:bg-white/[0.04] hover:text-[var(--color-app-text)]',
-              ].join(' ')}
-            >
-              Project chats
-            </button>
-          </div>
-        </div>
+      {/* Scope toggle / Sections */}
+      <div className="px-3 flex flex-col gap-0.5">
+        <button
+          onClick={() => setChatScope('all')}
+          className={`flex w-full items-center gap-2 px-2 py-1.5 text-sm rounded-md transition-colors ${
+            chatScope === 'all'
+              ? 'text-white bg-white/10 font-medium'
+              : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
+          }`}
+        >
+          <MessageSquarePlus className="h-4 w-4" />
+          Chats
+        </button>
+
+        <button
+          onClick={() => setChatScope('project')}
+          className={`flex w-full items-center gap-2 px-2 py-1.5 text-sm rounded-md transition-colors ${
+            chatScope === 'project'
+              ? 'text-white bg-white/10 font-medium'
+              : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
+          }`}
+        >
+          <FolderOpen className="h-4 w-4" />
+          Projects
+        </button>
       </div>
 
+      {/* Project section */}
       {chatScope === 'project' && (
-        <div className="px-4 pb-4">
-          <div className="rounded-[22px] border border-[var(--color-app-border)] bg-[var(--color-app-soft)] p-3">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-xs font-medium uppercase tracking-[0.22em] text-[var(--color-app-muted)]">
-                  Active project
-                </p>
-                {activeProject?.path ? (
-                  <>
-                    <p className="mt-2 text-sm font-semibold text-[var(--color-app-text)]">
-                      {activeProject.name}
-                    </p>
-                    <p className="mt-1 break-words text-xs text-[var(--color-app-muted)]">
-                      {activeProject.path}
-                    </p>
-                  </>
-                ) : (
-                  <p className="mt-2 text-sm text-[var(--color-app-muted)]">
-                    Pick a folder to keep this conversation scoped to a project.
-                  </p>
-                )}
-              </div>
-              <button
-                onClick={handlePickProjectFolder}
-                disabled={isAddingProject}
-                className="rounded-xl border border-white/8 bg-white/[0.04] p-2 text-[var(--color-app-muted)] transition hover:bg-white/[0.08] hover:text-[var(--color-app-text)] disabled:opacity-50"
-                aria-label="Choose a project folder"
-              >
-                <FolderOpen className="h-4 w-4" />
-              </button>
-            </div>
+        <div className="px-3 mt-3 text-xs text-gray-500">
 
-            <div className="mt-3 flex gap-2">
-              <div className="relative min-w-0 flex-1">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--color-app-muted)]" />
-                <input
-                  value={customPath}
-                  onChange={(e) => setCustomPath(e.target.value)}
-                  placeholder="/Users/.../project-folder"
-                  className="w-full rounded-2xl border border-[var(--color-app-border)] bg-[rgba(12,10,9,0.55)] py-2.5 pl-9 pr-3 text-xs text-[var(--color-app-text)] outline-none transition placeholder:text-[var(--color-app-muted)] focus:border-[var(--color-app-border-strong)]"
-                />
-              </div>
-              <button
-                onClick={handleAddCustomProject}
-                disabled={isAddingProject}
-                className="rounded-2xl bg-[var(--color-app-text)] px-3 py-2.5 text-xs font-semibold text-[#181513] transition hover:bg-[#fff8ef] disabled:opacity-50"
-              >
-                {isAddingProject ? 'Adding' : 'Add'}
-              </button>
+          {activeProject?.path ? (
+            <div className="mb-2">
+              <div className="text-gray-300">{activeProject.name}</div>
+              <div className="truncate">{activeProject.path}</div>
             </div>
+          ) : (
+            <div className="mb-2">No project selected</div>
+          )}
 
-            {projectError && (
-              <p className="mt-2 text-xs text-rose-300">{projectError}</p>
-            )}
+          <div className="flex gap-2 mt-2">
+            <button
+              onClick={handlePickProjectFolder}
+              className="text-gray-400 hover:text-white"
+            >
+              Choose
+            </button>
+
+            <button
+              onClick={handleAddCustomProject}
+              disabled={isAddingProject}
+              className="text-gray-400 hover:text-white disabled:opacity-50"
+            >
+              Add
+            </button>
           </div>
+
+          {projectError && (
+            <p className="mt-2 text-xs text-red-400">{projectError}</p>
+          )}
         </div>
       )}
 
-      <div className="min-h-0 flex-1 px-3 pb-3">
-        <div className="app-fade-mask h-full overflow-y-auto scrollbar-thin px-1">
-          <div className="mb-3 flex items-center justify-between px-3 pt-1">
-            <p className="text-xs font-medium uppercase tracking-[0.22em] text-[var(--color-app-muted)]">
-              {chatScope === 'project' ? 'Project sessions' : 'Recent chats'}
-            </p>
-            <p className="text-xs text-[var(--color-app-muted)]">{displayedSessions.length}</p>
-          </div>
-
-          {displayedSessions.length === 0 ? (
-            <div className="mx-2 rounded-[22px] border border-dashed border-[var(--color-app-border)] bg-white/[0.02] px-4 py-5 text-sm text-[var(--color-app-muted)]">
-              {chatScope === 'project'
-                ? 'No project chat yet. Choose a folder and start the first conversation.'
-                : 'No chats yet. Start a fresh conversation from here.'}
-            </div>
-          ) : (
-            <div className="space-y-1.5 px-1 pb-6">
-              {displayedSessions.map((session) => (
-                <SessionItem
-                  key={session.sessionId}
-                  session={session}
-                  active={session.sessionId === activeSessionId}
-                  isGenerating={session.sessionId === activeGeneratingSessionId}
-                  onClick={() => {
-                    onSelectSession?.(session.sessionId)
-                    if (isMobile) onCloseSidebar?.()
-                  }}
-                />
-              ))}
-            </div>
-          )}
+      {/* Sessions */}
+      <div className="flex-1 overflow-y-auto px-2 mt-4">
+        <div className="px-2 mb-2 text-[11px] font-medium text-gray-500 uppercase tracking-wider">
+          Recents
         </div>
+
+        {displayedSessions.length === 0 ? (
+          <div className="px-2 text-xs text-gray-500">
+            No chats yet
+          </div>
+        ) : (
+          <div className="space-y-1">
+            {displayedSessions.map((session) => (
+              <SessionItem
+                key={session.sessionId}
+                session={session}
+                active={session.sessionId === activeSessionId}
+                isGenerating={
+                  session.sessionId === activeGeneratingSessionId
+                }
+                onClick={() => {
+                  onSelectSession?.(session.sessionId)
+                  if (isMobile) onCloseSidebar?.()
+                }}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
+      {/* Footer */}
       <SidebarFooter />
     </aside>
   )
