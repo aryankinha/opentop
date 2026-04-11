@@ -100,6 +100,7 @@ export function getMemoryLastModified() {
 // ═══════════════════════════════════════════════════════════════════════
 
 const STRUCTURED_MEMORY_DIR = join(homedir(), '.opentop', 'memory');
+const SESSION_MEMORY_DIR = join(homedir(), '.opentop', 'storage', 'session-memory');
 
 // ─── Templates for initial files ────────────────────────────────────
 
@@ -174,6 +175,14 @@ function initMemoryFolder() {
 // Initialize on import
 initMemoryFolder();
 
+function initSessionMemoryFolder() {
+  if (!existsSync(SESSION_MEMORY_DIR)) {
+    mkdirSync(SESSION_MEMORY_DIR, { recursive: true });
+  }
+}
+
+initSessionMemoryFolder();
+
 // ─── CHANGE 2: Read/write functions for structured memory files ─────
 
 /**
@@ -219,6 +228,68 @@ export function appendToMemoryFile(filename, line) {
   writeFileSync(filePath, existing.trimEnd() + '\n' + line + '\n', 'utf8');
 }
 
+export function getSessionMemoryPath(sessionId) {
+  initSessionMemoryFolder();
+  return join(SESSION_MEMORY_DIR, `${sessionId}.md`);
+}
+
+export function readSessionMemory(sessionId) {
+  const filePath = getSessionMemoryPath(sessionId);
+  if (!existsSync(filePath)) return null;
+  const content = readFileSync(filePath, 'utf8').trim();
+  return content.length > 0 ? content : null;
+}
+
+export function writeSessionMemory(sessionId, content) {
+  const filePath = getSessionMemoryPath(sessionId);
+  writeFileSync(filePath, content || '', 'utf8');
+}
+
+export function appendToSessionMemory(sessionId, line) {
+  const existing = readSessionMemory(sessionId) || '';
+  const filePath = getSessionMemoryPath(sessionId);
+  writeFileSync(filePath, existing.trimEnd() + '\n' + line + '\n', 'utf8');
+}
+
+export function appendSessionMemoryFact(sessionId, fact) {
+  const timestamp = new Date().toISOString().split('T')[0];
+  appendToSessionMemory(sessionId, `- [${timestamp}] ${fact}`);
+}
+
+export function migrateGlobalMemoryToSession(sessionId) {
+  const existing = readSessionMemory(sessionId);
+  if (existing && existing.trim().length > 0) {
+    return false;
+  }
+
+  const structured = buildFullMemoryContext();
+  const legacy = loadGlobalMemory();
+  const sections = [];
+
+  if (structured && structured.trim().length > 0) {
+    sections.push(structured.trim());
+  }
+  if (legacy && legacy.trim().length > 0) {
+    sections.push(`[LEGACY GLOBAL MEMORY]\n${legacy.trim()}\n[END LEGACY GLOBAL MEMORY]`);
+  }
+
+  if (sections.length === 0) {
+    return false;
+  }
+
+  const migrated = [
+    '# Session Memory',
+    `# Migrated on ${new Date().toISOString()}`,
+    '# This memory is scoped to this chat session.',
+    '',
+    ...sections,
+    '',
+  ].join('\n');
+
+  writeSessionMemory(sessionId, migrated);
+  return true;
+}
+
 /**
  * Builds the full memory context string combining all structured memory files.
  * Only includes the last 20 lines of chats.md to keep context small.
@@ -262,6 +333,28 @@ export function buildGlobalMemoryPrompt() {
   if (legacy) return `[GLOBAL MEMORY]\n${legacy}\n[END GLOBAL MEMORY]`;
 
   return null;
+}
+
+export function buildSessionMemoryPrompt(sessionId, options = {}) {
+  const { includeGlobalMemory = false } = options;
+  const sessionMemory = readSessionMemory(sessionId);
+  const parts = [];
+
+  if (sessionMemory) {
+    parts.push('[SESSION MEMORY]');
+    parts.push(sessionMemory);
+    parts.push('[END SESSION MEMORY]');
+  }
+
+  if (includeGlobalMemory) {
+    const globalPrompt = buildGlobalMemoryPrompt();
+    if (globalPrompt) {
+      parts.push(globalPrompt);
+    }
+  }
+
+  if (parts.length === 0) return null;
+  return parts.join('\n\n');
 }
 
 // ─── CHANGE 4: System discovery ─────────────────────────────────────

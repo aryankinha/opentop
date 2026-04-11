@@ -40,10 +40,10 @@ export default function ModelSelector({ currentModel, onSelect }) {
     <div className="relative" ref={menuRef}>
       <button
         onClick={() => setOpen((value) => !value)}
-        className="flex items-center gap-2 rounded-2xl border border-white/8 bg-white/[0.04] px-3 py-2 text-sm text-[var(--color-app-text)] transition hover:bg-white/[0.08]"
+        className="flex items-center gap-1.5 sm:gap-2 rounded-2xl border border-white/8 bg-white/[0.04] px-2 py-2 sm:px-3 text-xs sm:text-sm text-[var(--color-app-text)] transition hover:bg-white/[0.08] whitespace-nowrap"
       >
-        <span>{selected.label}</span>
-        <ChevronDown className={`h-4 w-4 text-[var(--color-app-muted)] transition ${open ? 'rotate-180' : ''}`} />
+        <span className="truncate max-w-[80px] sm:max-w-none">{selected.label}</span>
+        <ChevronDown className={`h-3.5 w-3.5 sm:h-4 sm:w-4 text-[var(--color-app-muted)] transition flex-shrink-0 ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open && (

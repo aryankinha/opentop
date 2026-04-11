@@ -6,7 +6,7 @@
 import { CopilotClient } from '@github/copilot-sdk';
 import { homedir } from 'node:os';
 import logger from '../utils/logger.js';
-import { buildGlobalMemoryPrompt } from './globalMemory.js';
+import { buildSessionMemoryPrompt } from './globalMemory.js';
 import { getToken } from '../auth/token.js';
 
 /** @type {CopilotClient | null} */
@@ -117,15 +117,25 @@ function formatHistoryForPriming(messages) {
  * @param {Function} onPermission      - async (request) => { kind: "approved" | "denied" }
  * @param {Array}    [previousMessages=[]] - Messages to replay into the SDK session
  * @param {object}   [project=null]    - Optional project context { name, path }
+ * @param {object}   [options={}]      - Session options
+ * @param {boolean}  [options.includeGlobalMemory=false] - Include cross-chat global memory
  * @returns {Promise<object>}          - The SDK session object
  */
-export async function createAgentSession(sessionId, model, onPermission, previousMessages = [], project = null) {
+export async function createAgentSession(
+  sessionId,
+  model,
+  onPermission,
+  previousMessages = [],
+  project = null,
+  options = {},
+) {
   if (!client) throw new Error('CopilotClient not initialized — call initClient() first');
 
   logger.info('Creating Copilot agent session', { sessionId, model, project: project?.name || null });
 
   try {
-    const globalMemoryPrompt = buildGlobalMemoryPrompt();
+    const includeGlobalMemory = options.includeGlobalMemory === true;
+    const memoryPrompt = buildSessionMemoryPrompt(sessionId, { includeGlobalMemory });
 
     const normalizedProject = (
       project &&
@@ -182,7 +192,7 @@ You can read files, run commands, edit code, and help with any task.`;
     // Add memory instruction
     roleDefinition += `
 
-When the user asks you to "remember" something, extract the key fact and say: "I'll remember that: <fact>". The system will automatically save this to global memory.`;
+  When the user asks you to "remember" something, extract the key fact and say: "I'll remember that: <fact>". The system will automatically save this to this chat's memory.${includeGlobalMemory ? ' This session may also use shared global memory.' : ''}`;
 
     if (normalizedProject) {
       roleDefinition += `
@@ -190,8 +200,8 @@ When the user asks you to "remember" something, extract the key fact and say: "I
 When working in this project, always start by understanding the codebase structure before making changes.`;
     }
 
-    const systemContent = globalMemoryPrompt
-      ? `${roleDefinition}\n\n${globalMemoryPrompt}`
+    const systemContent = memoryPrompt
+      ? `${roleDefinition}\n\n${memoryPrompt}`
       : roleDefinition;
 
     logger.info('Creating session with workspace', { 

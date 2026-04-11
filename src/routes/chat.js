@@ -17,6 +17,9 @@ import {
   getSessionTokenCount,
   compactSession,
   updateSessionTitle,
+  updateSessionMemoryScope,
+  markSessionMemoryMigrated,
+  updateSessionModel,
 } from '../core/sessionManager.js';
 import {
   createAgentSession,
@@ -31,8 +34,10 @@ import {
   loadGlobalMemory,
   saveGlobalMemory,
   appendGlobalMemory,
+  appendSessionMemoryFact,
   getGlobalMemoryPath,
   getMemoryLastModified,
+  migrateGlobalMemoryToSession,
   readMemoryFile,
   writeMemoryFile,
   appendToMemoryFile,
@@ -129,7 +134,8 @@ export function createChatRouter(wsClients) {
   // Creates a new session. Optionally accepts a project.
   router.post('/session', async (req, res, next) => {
     try {
-      const { model, project } = req.body || {};
+      const { model, project, memoryScope } = req.body || {};
+      const normalizedMemoryScope = memoryScope === 'global' ? 'global' : 'session';
 
       // Validate project if provided
       let validatedProject = null;
@@ -154,18 +160,20 @@ export function createChatRouter(wsClients) {
         };
       }
 
-      const sessionId = createSession(model, validatedProject);
+      const sessionId = createSession(model, validatedProject, normalizedMemoryScope);
       const session = getSession(sessionId);
       logger.info('HTTP session created', {
         sessionId,
         project: session.project?.path || null,
         model: session.model,
+        memoryScope: session.memoryScope,
       });
 
       res.status(201).json({
         sessionId: session.sessionId,
         model: session.model,
         project: session.project || null,
+        memoryScope: session.memoryScope || 'session',
         name: session.name || null,
         createdAt: session.createdAt,
       });
@@ -235,6 +243,29 @@ export function createChatRouter(wsClients) {
     }
   });
 
+  // ─── PATCH /session/:id/memory-scope ───────────────────────────
+  // Updates memory scope for a session.
+  router.patch('/session/:id/memory-scope', (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const { memoryScope } = req.body || {};
+
+      if (!memoryScope || !['session', 'global'].includes(memoryScope)) {
+        return res.status(400).json({ error: 'memoryScope must be "session" or "global"' });
+      }
+
+      const session = getSession(id);
+      if (!session) {
+        return res.status(404).json({ error: 'Session not found' });
+      }
+
+      const updated = updateSessionMemoryScope(id, memoryScope);
+      res.json({ success: true, sessionId: id, memoryScope: updated });
+    } catch (err) {
+      next(err);
+    }
+  });
+
   // ─── DELETE /session/:id ───────────────────────────────────────
   // Closes and removes the session.
   router.delete('/session/:id', async (req, res, next) => {
@@ -267,6 +298,31 @@ export function createChatRouter(wsClients) {
         return res.status(404).json({ error: 'Session not found' });
       }
 
+      const requestedModel = typeof model === 'string' ? model.trim() : '';
+      if (requestedModel && requestedModel !== session.model) {
+        const previousModel = session.model;
+        try {
+          if (session.copilotSession) {
+            await closeCopilotSdkSession(session.copilotSession);
+            session.copilotSession = null;
+          }
+        } catch (closeErr) {
+          logger.warn('Failed to close session during model switch', {
+            sessionId: id,
+            error: closeErr.message,
+          });
+          session.copilotSession = null;
+        }
+
+        const nextModel = updateSessionModel(id, requestedModel);
+        session.model = nextModel;
+        logger.info('Session model switched', {
+          sessionId: id,
+          previousModel,
+          nextModel,
+        });
+      }
+
       if (session.status === 'closed') {
         return res.status(410).json({ error: 'Session is closed' });
       }
@@ -287,10 +343,18 @@ export function createChatRouter(wsClients) {
       // 2. Lazily create Copilot SDK session if it doesn't exist yet
       const isFirstCreate = !session.copilotSession;
       if (!session.copilotSession) {
+        if (!session.memoryMigratedAt) {
+          const migrated = migrateGlobalMemoryToSession(id);
+          if (migrated) {
+            markSessionMemoryMigrated(id);
+          }
+        }
+
         // Check if this is a resume (session has messages from disk, loaded before restart)
         // Exclude the user message we just added above — it will be sent as the real turn
         const existingMessages = session.messages.slice(0, -1);
         const isResume = existingMessages.length > 0;
+        const includeGlobalMemory = (session.memoryScope || 'session') === 'global';
 
         const onPermission = createHandler(id, wsClients);
         session.copilotSession = await createAgentSession(
@@ -299,6 +363,7 @@ export function createChatRouter(wsClients) {
           onPermission,
           isResume ? existingMessages : [],
           session.project || null,
+          { includeGlobalMemory },
         );
         session.status = 'active';
         logger.info('Copilot SDK session attached', {
@@ -343,7 +408,7 @@ Do not respond to this message - just acknowledge with "Ready."`;
       logger.info('Sending message to Copilot', {
         sessionId: id,
         messageLength: message.length,
-        requestedModel: model || null,
+        requestedModel: requestedModel || null,
         sessionModel: session.model,
       });
 
@@ -373,6 +438,7 @@ Do not respond to this message - just acknowledge with "Ready."`;
         });
 
         const onPermission = createHandler(id, wsClients);
+        const includeGlobalMemory = (session.memoryScope || 'session') === 'global';
         const existingMessages = session.messages.slice(0, -1);
         session.copilotSession = await createAgentSession(
           id,
@@ -380,6 +446,7 @@ Do not respond to this message - just acknowledge with "Ready."`;
           onPermission,
           existingMessages,
           session.project || null,
+          { includeGlobalMemory },
         );
         session.status = 'active';
 
@@ -404,8 +471,14 @@ Do not respond to this message - just acknowledge with "Ready."`;
       for (const pattern of MEMORY_PATTERNS) {
         const match = result.content.match(pattern);
         if (match) {
-          appendGlobalMemory(match[1].trim());
-          logger.info('Global memory updated', { fact: match[1].trim() });
+          const fact = match[1].trim();
+          if ((session.memoryScope || 'session') === 'global') {
+            appendGlobalMemory(fact);
+            logger.info('Global memory updated', { fact });
+          } else {
+            appendSessionMemoryFact(id, fact);
+            logger.info('Session memory updated', { sessionId: id, fact });
+          }
           break;
         }
       }

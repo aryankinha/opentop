@@ -46,7 +46,7 @@ export default function EmptyState({
       </header>
 
       {/* Center content */}
-      <div className="flex flex-1 flex-col items-center justify-center px-4 -mt-16">
+      <div className="flex flex-1 flex-col items-center justify-center px-4">
 
         {/* Title */}
         <h1 className="text-3xl font-serif text-[#e4dac5] flex items-center justify-center gap-3">
@@ -55,24 +55,26 @@ export default function EmptyState({
         </h1>
 
         {/* Input */}
-        <div className="mt-8 w-full max-w-2xl">
+        <div className="mt-12 w-full max-w-2xl flex flex-col items-center">
           {sendError && (
             <div className="mb-4 text-sm text-red-400 text-center">
               {sendError}
             </div>
           )}
-          <ChatInput
-            input={input}
-            setInput={setInput}
-            onSend={handleSend}
-            onCancel={cancelMessage}
-            isLoading={isSending}
-            isInitial
-          />
+          <div className="w-full">
+            <ChatInput
+              input={input}
+              setInput={setInput}
+              onSend={handleSend}
+              onCancel={cancelMessage}
+              isLoading={isSending}
+              isInitial
+            />
+          </div>
         </div>
 
         {/* Suggestions */}
-        <div className="mt-5 flex flex-wrap gap-2 justify-center max-w-2xl">
+        <div className="mt-6 flex flex-wrap gap-2 justify-center max-w-2xl px-4">
           {SUGGESTIONS.map((s) => (
             <button
               key={s.text}
@@ -87,7 +89,7 @@ export default function EmptyState({
 
         {/* Active project (minimal) */}
         {activeProject?.path && (
-          <div className="mt-6 text-xs text-gray-500 truncate max-w-md text-center">
+          <div className="mt-8 text-xs text-gray-500 truncate max-w-md text-center">
             {activeProject.name} — {activeProject.path}
           </div>
         )}

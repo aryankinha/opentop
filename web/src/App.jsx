@@ -87,6 +87,7 @@ function AppContent() {
   const [projects, setProjects] = useState([])
   const [activeProject, setActiveProject] = useState(null)
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
+  const [isCreatingChat, setIsCreatingChat] = useState(false)
   
   // PWA install notification
   const { 
@@ -195,17 +196,22 @@ function AppContent() {
     if (isMobile) setSidebarOpen(false)
   }
 
-  const handleNewChat = () => {
-    setActiveProject(null)
-    localStorage.removeItem('activeProjectPath')
+  const handleNewChat = useCallback(() => {
+    // Just clear the current session to show empty chat
+    // Session will be created when user sends the first message
     selectSession(null)
+
     if (isMobile) setSidebarOpen(false)
-    
-    // Show PWA install prompt on new chat (only in web mode)
+
     if (!isPWAInstalled) {
       triggerPWAPrompt()
     }
-  }
+  }, [
+    isMobile,
+    isPWAInstalled,
+    selectSession,
+    triggerPWAPrompt,
+  ])
 
   const handleProjectSelect = async (project) => {
     setActiveProject(project || null)
@@ -296,7 +302,7 @@ function AppContent() {
     : null
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-[var(--color-app-bg)] text-[var(--color-app-text)]">
+    <div className="flex h-screen w-screen overflow-hidden bg-app-bg text-app-text">
       {sidebarOpen && isMobile && (
         <div 
           className="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm md:hidden" 

@@ -5,7 +5,7 @@ export default function FormattedMessage({ content }) {
   const parts = safeContent.split(/(```[\s\S]*?```)/g)
 
   return (
-    <div className="space-y-3">
+    <div className="w-full max-w-full space-y-3">
       {parts.map((part, index) => {
         if (part.startsWith('```')) {
           const code = part.slice(3).replace(/^.*\n/, '').replace(/```$/, '')
@@ -13,12 +13,12 @@ export default function FormattedMessage({ content }) {
           const lang = langMatch ? langMatch[1] : ''
 
           return (
-            <div key={index} className="overflow-hidden rounded-[24px] border border-white/8 bg-[#151210]">
-              <div className="flex items-center justify-between border-b border-white/6 px-4 py-2 text-xs text-[var(--color-app-muted)]">
+            <div key={index} className="overflow-hidden rounded-3xl border border-white/8 bg-[#151210]">
+              <div className="flex items-center justify-between border-b border-white/6 px-4 py-2 text-xs text-app-muted">
                 <span>{lang || 'code'}</span>
                 <button
                   onClick={() => navigator.clipboard.writeText(code)}
-                  className="transition hover:text-[var(--color-app-text)]"
+                  className="transition hover:text-app-text"
                 >
                   Copy
                 </button>
@@ -36,7 +36,7 @@ export default function FormattedMessage({ content }) {
               if (line.match(/^[-*]\s/)) {
                 return (
                   <div key={lineIndex} className="flex gap-3">
-                    <span className="mt-2 text-[var(--color-app-muted)]">•</span>
+                    <span className="mt-2 text-app-muted">•</span>
                     <span className="flex-1">{formatInline(line.slice(2))}</span>
                   </div>
                 )
@@ -44,7 +44,7 @@ export default function FormattedMessage({ content }) {
 
               if (line.startsWith('### ')) {
                 return (
-                  <p key={lineIndex} className="text-base font-semibold text-[var(--color-app-text)]">
+                  <p key={lineIndex} className="text-base font-semibold text-app-text">
                     {line.slice(4)}
                   </p>
                 )
@@ -52,14 +52,14 @@ export default function FormattedMessage({ content }) {
 
               if (line.startsWith('## ')) {
                 return (
-                  <p key={lineIndex} className="text-lg font-semibold text-[var(--color-app-text)]">
+                  <p key={lineIndex} className="text-lg font-semibold text-app-text">
                     {line.slice(3)}
                   </p>
                 )
               }
 
               return line ? (
-                <p key={lineIndex} className="whitespace-pre-wrap break-words text-[var(--color-app-text)]/95">
+                <p key={lineIndex} className="w-full whitespace-pre-wrap wrap-break-word text-app-text/95">
                   {formatInline(line)}
                 </p>
               ) : (
@@ -79,7 +79,7 @@ function formatInline(text) {
   return parts.map((part, index) => {
     if (part.startsWith('**') && part.endsWith('**')) {
       return (
-        <strong key={index} className="font-semibold text-[var(--color-app-text)]">
+        <strong key={index} className="font-semibold text-app-text">
           {part.slice(2, -2)}
         </strong>
       )
@@ -89,7 +89,7 @@ function formatInline(text) {
       return (
         <code
           key={index}
-          className="rounded-md border border-white/8 bg-white/[0.05] px-1.5 py-0.5 text-[13px] text-[var(--color-app-accent-soft)]"
+          className="max-w-full break-all rounded-md border border-white/8 bg-white/5 px-1.5 py-0.5 text-[13px] text-app-accent-soft"
         >
           {part.slice(1, -1)}
         </code>

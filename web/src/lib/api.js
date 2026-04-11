@@ -70,13 +70,14 @@ class ApiClient {
   }
 
   // Sessions
-  async createSession(model = null) {
-    return this.createSessionWithProject(model, null)
+  async createSession(model = null, memoryScope = 'session') {
+    return this.createSessionWithProject(model, null, memoryScope)
   }
 
-  async createSessionWithProject(model = null, project = null) {
+  async createSessionWithProject(model = null, project = null, memoryScope = 'session') {
     const payload = {}
     if (model) payload.model = model
+    payload.memoryScope = memoryScope === 'global' ? 'global' : 'session'
     if (project?.path) {
       payload.project = {
         name: project.name || undefined,
@@ -108,6 +109,15 @@ class ApiClient {
     return this.request(`/session/${sessionId}/title`, {
       method: 'PATCH',
       body: JSON.stringify({ title }),
+    })
+  }
+
+  async updateSessionMemoryScope(sessionId, memoryScope) {
+    return this.request(`/session/${sessionId}/memory-scope`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        memoryScope: memoryScope === 'global' ? 'global' : 'session',
+      }),
     })
   }
 

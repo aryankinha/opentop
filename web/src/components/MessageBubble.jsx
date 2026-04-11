@@ -28,7 +28,7 @@ export default function MessageBubble({ message, sessionModel = null }) {
         className="flex justify-end py-3"
       >
         <div className="max-w-[85%] rounded-[28px] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.04))] px-5 py-4 shadow-[0_18px_44px_rgba(0,0,0,0.18)] md:max-w-[72%]">
-          <p className="whitespace-pre-wrap break-words text-[15px] leading-7 text-[var(--color-app-text)]">
+          <p className="whitespace-pre-wrap wrap-break-word text-[15px] leading-7 text-app-text">
             {message.content}
           </p>
         </div>
@@ -40,7 +40,7 @@ export default function MessageBubble({ message, sessionModel = null }) {
     <motion.div
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
-      className="flex gap-4 py-5"
+      className="flex w-full max-w-full gap-4 py-5"
     >
       <div className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-[18px] border border-amber-400/18 bg-amber-500/10 text-amber-200">
         <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -48,14 +48,14 @@ export default function MessageBubble({ message, sessionModel = null }) {
         </svg>
       </div>
 
-      <div className="min-w-0 flex-1">
-        <div className="text-[15px] leading-7 text-[var(--color-app-text)]">
+      <div className="min-w-0 flex-1 overflow-hidden">
+        <div className="w-full max-w-full text-[15px] leading-7 text-app-text">
           <FormattedMessage content={message.content} />
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-[var(--color-app-muted)]">
+        <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-app-muted">
           {responseModel && (
-            <span className="rounded-full border border-white/8 bg-white/[0.04] px-2.5 py-1">
+            <span className="rounded-full border border-white/8 bg-white/4 px-2.5 py-1">
               {formatModelLabel(responseModel)}
             </span>
           )}
@@ -64,7 +64,7 @@ export default function MessageBubble({ message, sessionModel = null }) {
             message.toolsUsed.map((tool, index) => (
               <span
                 key={`${tool}-${index}`}
-                className="rounded-full border border-white/8 bg-white/[0.03] px-2.5 py-1"
+                className="rounded-full border border-white/8 bg-white/3 px-2.5 py-1"
               >
                 {tool}
               </span>

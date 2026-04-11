@@ -334,9 +334,9 @@ export function AppProvider({ children }) {
     }
   }, [state.user])
 
-  const createSession = useCallback(async (model = null, project = null) => {
+  const createSession = useCallback(async (model = null, project = null, memoryScope = 'session') => {
     try {
-      const session = await api.createSessionWithProject(model, project)
+      const session = await api.createSessionWithProject(model, project, memoryScope)
       dispatch({ type: actions.ADD_SESSION, payload: session })
       dispatch({ type: actions.SET_CURRENT_SESSION, payload: session.sessionId })
       return session
@@ -429,21 +429,7 @@ export function AppProvider({ children }) {
     try {
       const currentSession = state.sessions.find((s) => s.sessionId === sessionId)
 
-      // If user switched model while in an active chat, start a new session with that model.
-      if (
-        sessionId &&
-        selectedModel &&
-        currentSession?.model &&
-        selectedModel !== currentSession.model
-      ) {
-        const session = await api.createSessionWithProject(
-          selectedModel,
-          selectedProject || currentSession.project || null,
-        )
-        dispatch({ type: actions.ADD_SESSION, payload: session })
-        dispatch({ type: actions.SET_CURRENT_SESSION, payload: session.sessionId })
-        sessionId = session.sessionId
-      }
+      // Removed session recreation conditional on model change. The backend will handle turn-level seamlessly.
 
       // Create a session lazily only when user sends the first message.
       if (!sessionId) {
@@ -492,13 +478,21 @@ export function AppProvider({ children }) {
       return result
     } catch (error) {
       if (error.name === 'AbortError') {
+        dispatch({ type: actions.SET_SEND_ERROR, payload: 'Request was canceled.' })
         dispatch({ type: actions.SET_SENDING, payload: false })
         return { canceled: true }
       }
       if (isUnauthorizedError(error)) {
         dispatch({ type: actions.SET_CONNECTION_ERROR, payload: error.message })
       }
-      dispatch({ type: actions.SET_SEND_ERROR, payload: error.message })
+      
+      const errMsg = error.message || ''
+      if (errMsg.includes('500') || errMsg.toLowerCase().includes('internal server error')) {
+        dispatch({ type: actions.SET_SEND_ERROR, payload: 'There is traffic error according to the operation. Please try again.' })
+      } else {
+        dispatch({ type: actions.SET_SEND_ERROR, payload: error.message })
+      }
+      
       throw error
     } finally {
       if (activeRequestRef.current?.controller === controller) {

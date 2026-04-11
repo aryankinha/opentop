@@ -72,7 +72,6 @@ export default function SessionItem({
         active
           ? 'border-[var(--color-app-border-strong)] bg-white/[0.08] shadow-[0_12px_32px_rgba(0,0,0,0.22)]'
           : 'border-transparent bg-white/[0.03] hover:border-[var(--color-app-border)] hover:bg-white/[0.06]',
-        isGenerating ? 'pr-24' : '',
       ].join(' ')}
     >
       <div className="flex items-start gap-3">
@@ -80,7 +79,7 @@ export default function SessionItem({
           {title.charAt(0)}
         </div>
 
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 group-hover:pr-14 transition-[padding]">
           {isEditing ? (
             <input
               ref={inputRef}
@@ -93,9 +92,17 @@ export default function SessionItem({
             />
           ) : (
             <>
-              <p className="truncate text-sm font-medium text-[var(--color-app-text)]">
-                {title}
-              </p>
+              <div className="flex items-center gap-2">
+                <p className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--color-app-text)]">
+                  {title}
+                </p>
+                {isGenerating && (
+                  <span className="flex shrink-0 items-center gap-1.5 rounded-full border border-amber-400/20 bg-amber-500/10 px-2.5 py-1 text-[10px] font-medium text-amber-100">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Generating
+                  </span>
+                )}
+              </div>
               <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[var(--color-app-muted)]">
                 {session.project?.name && (
                   <span className="rounded-full border border-white/8 bg-white/[0.04] px-2 py-1">
@@ -110,13 +117,6 @@ export default function SessionItem({
           )}
         </div>
       </div>
-
-      {isGenerating && (
-        <div className="absolute right-4 top-1/2 flex -translate-y-1/2 items-center gap-1.5 rounded-full border border-amber-400/20 bg-amber-500/10 px-2.5 py-1 text-[10px] font-medium text-amber-100">
-          <Loader2 className="h-3 w-3 animate-spin" />
-          Generating
-        </div>
-      )}
 
       {!isEditing && !isGenerating && (
         <div className="absolute right-3 top-3 flex items-center gap-1 opacity-0 transition group-hover:opacity-100">

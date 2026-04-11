@@ -18,7 +18,7 @@ import { join, resolve } from 'node:path';
 import { homedir } from 'node:os';
 import { config } from '../config.js';
 import { closeSession as closeCopilotSession } from './copilotClient.js';
-import { appendToMemoryFile } from './globalMemory.js';
+import { appendToMemoryFile, appendToSessionMemory } from './globalMemory.js';
 import logger from '../utils/logger.js';
 
 const GLOBAL_STORAGE_DIR = join(homedir(), '.opentop', 'storage');
@@ -231,6 +231,8 @@ function saveToDisk(session) {
     sessionId: session.sessionId,
     model: session.model,
     project: session.project || null,
+    memoryScope: session.memoryScope || 'session',
+    memoryMigratedAt: session.memoryMigratedAt || null,
     name: session.name || null,
     createdAt: session.createdAt,
     messages: session.messages,
@@ -258,14 +260,18 @@ function saveToDisk(session) {
  * Creates a new session and saves it to disk.
  * @param {string} [model] - Model to use; defaults to config.defaultModel
  * @param {object} [project] - Optional project context { name, path }
+ * @param {'session'|'global'} [memoryScope='session'] - Memory scope for this chat
  * @returns {string} The new sessionId
  */
-export function createSession(model, project = null) {
+export function createSession(model, project = null, memoryScope = 'session') {
   const sessionId = uuidv4();
+  const normalizedScope = memoryScope === 'global' ? 'global' : 'session';
   const session = {
     sessionId,
     model: model || config.defaultModel,
     project: project || null,
+    memoryScope: normalizedScope,
+    memoryMigratedAt: null,
     name: project ? project.name : null,
     createdAt: new Date().toISOString(),
     messages: [],
@@ -280,8 +286,51 @@ export function createSession(model, project = null) {
   sessions.set(sessionId, session);
   saveToDisk(session);
 
-  logger.info('Session created', { sessionId, model: session.model, project: project?.name || null });
+  logger.info('Session created', {
+    sessionId,
+    model: session.model,
+    project: project?.name || null,
+    memoryScope: normalizedScope,
+  });
   return sessionId;
+}
+
+export function updateSessionMemoryScope(sessionId, memoryScope) {
+  const session = sessions.get(sessionId);
+  if (!session) {
+    throw new Error(`Session not found: ${sessionId}`);
+  }
+
+  const normalizedScope = memoryScope === 'global' ? 'global' : 'session';
+  session.memoryScope = normalizedScope;
+  saveToDisk(session);
+
+  return normalizedScope;
+}
+
+export function updateSessionModel(sessionId, model) {
+  const session = sessions.get(sessionId);
+  if (!session) {
+    throw new Error(`Session not found: ${sessionId}`);
+  }
+
+  if (!model || typeof model !== 'string') {
+    throw new Error('model must be a non-empty string');
+  }
+
+  session.model = model;
+  saveToDisk(session);
+  return session.model;
+}
+
+export function markSessionMemoryMigrated(sessionId, migratedAt = new Date().toISOString()) {
+  const session = sessions.get(sessionId);
+  if (!session) {
+    throw new Error(`Session not found: ${sessionId}`);
+  }
+
+  session.memoryMigratedAt = migratedAt;
+  saveToDisk(session);
 }
 
 /**
@@ -315,6 +364,7 @@ export function getAllSessions() {
     name: s.name || null,
     model: s.model,
     project: s.project || null,
+    memoryScope: s.memoryScope || 'session',
     createdAt: s.createdAt,
     messageCount: s.messages.length,
     status: s.status,
@@ -380,6 +430,14 @@ export function saveChatSummaryToGlobalMemory(sessionId, summary, model) {
   const oneLiner = summary.split('\n')[0].slice(0, 120);
   const line = `[${date}] [${shortId}] [${model || 'unknown'}] — ${oneLiner}`;
   appendToMemoryFile('chats.md', line);
+}
+
+function saveChatSummaryToSessionMemory(sessionId, summary, model) {
+  const date = new Date().toISOString().split('T')[0];
+  const shortId = sessionId.slice(0, 8);
+  const oneLiner = summary.split('\n')[0].slice(0, 120);
+  const line = `[${date}] [${shortId}] [${model || 'unknown'}] — ${oneLiner}`;
+  appendToSessionMemory(sessionId, line);
 }
 
 // ─── Memory compaction ──────────────────────────────────────────────
@@ -472,11 +530,15 @@ export async function compactSession(sessionId, summarizer, options = {}) {
     newTokenCount: getSessionTokenCount(sessionId),
   });
 
-  // Save chat summary to global memory
+  // Save chat summary according to session memory scope
   try {
-    saveChatSummaryToGlobalMemory(sessionId, summary, session.model);
+    if ((session.memoryScope || 'session') === 'global') {
+      saveChatSummaryToGlobalMemory(sessionId, summary, session.model);
+    } else {
+      saveChatSummaryToSessionMemory(sessionId, summary, session.model);
+    }
   } catch (err) {
-    logger.warn('Failed to save chat summary to global memory', { sessionId, error: err.message });
+    logger.warn('Failed to save chat summary', { sessionId, error: err.message });
   }
 
   return {
@@ -499,7 +561,7 @@ export async function closeSession(sessionId) {
 
   session.status = 'closed';
 
-  // Save chat summary to global memory if session has enough messages
+  // Save chat summary according to session memory scope if session has enough messages
   try {
     if (session.messages.length > 4) {
       const lastAssistant = [...session.messages]
@@ -507,7 +569,11 @@ export async function closeSession(sessionId) {
         .find(m => m.role === 'assistant');
       if (lastAssistant) {
         const snippet = lastAssistant.content.slice(0, 100).replace(/\n/g, ' ');
-        saveChatSummaryToGlobalMemory(sessionId, snippet, session.model);
+        if ((session.memoryScope || 'session') === 'global') {
+          saveChatSummaryToGlobalMemory(sessionId, snippet, session.model);
+        } else {
+          saveChatSummaryToSessionMemory(sessionId, snippet, session.model);
+        }
       }
     }
   } catch (err) {
@@ -605,6 +671,8 @@ export function loadAllSessions() {
         // Restore session into memory (copilotSession is null until re-created)
         sessions.set(data.sessionId, {
           ...data,
+          memoryScope: data.memoryScope === 'global' ? 'global' : 'session',
+          memoryMigratedAt: data.memoryMigratedAt || null,
           copilotSession: null,
         });
       } catch (err) {

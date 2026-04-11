@@ -33,7 +33,7 @@ export default function ChatView({ sessionId, onOpenSidebar }) {
   }
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-[var(--color-app-bg)] text-[var(--color-app-text)] relative">
+    <div className="relative flex h-full flex-col overflow-hidden bg-app-bg text-app-text">
 
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-white/10">
@@ -57,7 +57,7 @@ export default function ChatView({ sessionId, onOpenSidebar }) {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden">
         <div className="mx-auto w-full max-w-3xl px-4 py-6">
 
           {sendError && (
