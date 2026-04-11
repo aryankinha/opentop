@@ -1,6 +1,6 @@
 {
   "name": "opentop",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "description": "Self-hosted AI agent backend powered by GitHub Copilot SDK",
   "author": "OpenTop Contributors",
   "license": "MIT",
