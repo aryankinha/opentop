@@ -38,7 +38,7 @@ export default function SettingsModal({ isOpen, onClose }) {
   return createPortal(
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-100 flex items-center justify-center p-0 md:p-6">
+        <div className="fixed inset-0 z-[100] flex items-end justify-center p-0 md:items-center md:p-6">
           <Motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -53,11 +53,10 @@ export default function SettingsModal({ isOpen, onClose }) {
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.96, y: 10 }}
           transition={{ type: "spring", duration: 0.4, bounce: 0.1 }}
-          className="relative w-full h-full md:h-auto md:max-w-4xl bg-[#1e1e1e] md:border border-zinc-800 md:rounded-xl shadow-2xl flex flex-col md:flex-row overflow-hidden z-10"
-          style={{ maxHeight: '85vh' }}
+          className="relative z-10 flex h-[92dvh] w-full min-h-0 flex-col overflow-hidden bg-[#1e1e1e] shadow-2xl md:h-auto md:max-h-[85dvh] md:max-w-4xl md:flex-row md:rounded-xl md:border md:border-zinc-800"
         >
           {/* Mobile Header (Close Button Only) */}
-          <div className="md:hidden flex items-center justify-between p-4 border-b border-zinc-800/50 bg-[#1a1a1a]">
+          <div className="md:hidden flex shrink-0 items-center justify-between border-b border-zinc-800/50 bg-[#1a1a1a] p-4">
             {/* Tab selector for mobile using native select */}
             <select 
               className="bg-transparent text-sm font-medium text-zinc-100 outline-none"
@@ -79,7 +78,7 @@ export default function SettingsModal({ isOpen, onClose }) {
           </div>
 
           {/* Desktop Sidebar */}
-          <div className="hidden md:flex flex-col w-64 border-r border-zinc-800/60 bg-[#1a1a1a] shrink-0">
+          <div className="hidden w-64 shrink-0 flex-col border-r border-zinc-800/60 bg-[#1a1a1a] md:flex">
             <h2 className="px-5 py-5 text-xl font-semibold text-zinc-100">Settings</h2>
             <nav className="flex-1 px-3 space-y-1">
               {TABS.map(tab => (
@@ -103,9 +102,9 @@ export default function SettingsModal({ isOpen, onClose }) {
           </div>
 
           {/* Main Content Area */}
-          <div className="flex-1 flex flex-col min-w-0 bg-[#212121]">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-[#212121]">
              {/* Desktop Close Button */}
-             <div className="hidden md:flex justify-between items-center px-8 py-5 shrink-0 border-b border-zinc-800/30">
+             <div className="hidden shrink-0 items-center justify-between border-b border-zinc-800/30 px-8 py-5 md:flex">
                <h3 className="text-lg font-medium text-zinc-100">{TABS.find(t => t.id === activeTab)?.label}</h3>
                <button 
                   onClick={onClose} 
@@ -119,7 +118,7 @@ export default function SettingsModal({ isOpen, onClose }) {
              </div>
 
              {/* Tab Content */}
-             <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6">
+             <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6 md:px-8">
                 {activeTab === 'general' && <GeneralSettings />}
                 {activeTab === 'memory' && <MemorySettings />}
                 {activeTab === 'connection' && <ConnectionSettings />}

@@ -96,16 +96,16 @@ export default function SystemStatus() {
   const usageDisplay = normalizeUsage(usage)
 
   return (
-    <div className="rounded-[22px] border border-white/6 bg-black/10 p-3">
+    <div className="rounded-[18px] border border-white/6 bg-black/10 p-2.5">
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-xs font-medium uppercase tracking-[0.22em] text-[var(--color-app-muted)]">
             Connection
           </p>
-          <p className="mt-1 text-sm font-medium text-[var(--color-app-text)]">
+          <p className="mt-1 text-[13px] font-medium text-[var(--color-app-text)]">
             {isConnected ? 'Connected' : 'Disconnected'}
           </p>
-          <p className="mt-1 truncate text-xs text-[var(--color-app-muted)]">
+          <p className="mt-0.5 truncate text-xs text-[var(--color-app-muted)]">
             {displayUrl}
           </p>
         </div>
@@ -113,7 +113,7 @@ export default function SystemStatus() {
       </div>
 
       {isConnected && (
-        <div className="mt-3 rounded-2xl border border-white/6 bg-white/[0.03] p-3">
+        <div className="mt-2.5 rounded-2xl border border-white/6 bg-white/[0.03] p-2.5">
           <div className="flex items-center justify-between gap-2 text-xs">
             <span className="text-[var(--color-app-muted)]">Usage</span>
             <span className="font-mono text-[var(--color-app-text)]">{usageDisplay.label}</span>

@@ -199,7 +199,7 @@ export default function PermissionSettings() {
         </div>
       )}
 
-      <div className="flex items-center justify-between gap-2 pt-2 border-t border-zinc-800/50">
+      <div className="flex flex-col items-start justify-between gap-3 border-t border-zinc-800/50 pt-2 sm:flex-row sm:items-center">
         <button
           onClick={handleSaferDefaults}
           disabled={saving || loading}
@@ -208,7 +208,7 @@ export default function PermissionSettings() {
           Use safer defaults
         </button>
 
-        <div className="flex items-center gap-2">
+        <div className="flex w-full flex-wrap justify-end items-center gap-2 sm:w-auto">
           <button
             onClick={loadPolicy}
             disabled={saving || loading}

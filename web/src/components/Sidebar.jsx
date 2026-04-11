@@ -3,8 +3,6 @@ import {
   FolderOpen,
   MessageSquarePlus,
   Plus,
-  Search,
-  Sparkles,
   X,
 } from 'lucide-react'
 import SessionItem from './SessionItem'
@@ -53,6 +51,7 @@ export default function Sidebar({
 
   const handleProjectChange = async (project) => {
     setProjectError('')
+    setChatScope(project?.path ? 'project' : 'all')
     await onProjectSelect?.(project || null)
   }
 
@@ -106,35 +105,35 @@ export default function Sidebar({
   return (
     <aside
       className={[
-        'fixed inset-y-0 left-0 z-40 flex w-[260px] flex-col bg-[var(--color-app-sidebar)] border-r border-[var(--color-app-border)]',
+        'fixed inset-y-0 left-0 z-40 flex min-h-0 w-[86vw] max-w-[300px] flex-col border-r border-[var(--color-app-border)] bg-[var(--color-app-sidebar)] md:relative md:w-[292px]',
+        'shadow-[0_24px_80px_rgba(0,0,0,0.35)] md:shadow-none',
         'transition-transform duration-300 md:relative',
         sidebarOpen || !isMobile ? 'translate-x-0' : '-translate-x-full',
       ].join(' ')}
     >
-      {/* Top Header */}
-      <div className="flex items-center justify-between px-4 py-4">
-        <div className="font-serif text-lg text-white font-medium pl-1">
+      <div className="flex shrink-0 items-center justify-between px-4 pb-3 pt-4">
+        <div className="pl-1 font-serif text-lg font-medium text-white">
           OpenTop
         </div>
 
         {isMobile && (
           <button
             onClick={onCloseSidebar}
-            className="text-gray-400 hover:text-white"
+            className="rounded-md p-1.5 text-gray-400 transition hover:bg-white/5 hover:text-white"
+            aria-label="Close sidebar"
           >
             <X className="h-4 w-4" />
           </button>
         )}
       </div>
 
-      {/* New Chat */}
-      <div className="px-3 mb-4">
+      <div className="shrink-0 px-3 pb-3">
         <button
           onClick={() => {
             onNewChat?.()
             if (isMobile) onCloseSidebar?.()
           }}
-          className="flex w-full items-center gap-2 px-2 py-1.5 text-sm font-medium text-gray-200 hover:bg-white/5 rounded-md transition-colors"
+          className="flex w-full items-center gap-2 rounded-xl border border-white/8 px-2.5 py-2 text-sm font-medium text-gray-200 transition-colors hover:bg-white/5"
         >
           <div className="flex h-5 w-5 items-center justify-center rounded-full bg-white/10 text-white">
             <Plus className="h-3 w-3" />
@@ -143,50 +142,57 @@ export default function Sidebar({
         </button>
       </div>
 
-      {/* Scope toggle / Sections */}
-      <div className="px-3 flex flex-col gap-0.5">
+      <div className="shrink-0 px-3">
         <button
           onClick={() => setChatScope('all')}
-          className={`flex w-full items-center gap-2 px-2 py-1.5 text-sm rounded-md transition-colors ${
+          className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${
             chatScope === 'all'
               ? 'text-white bg-white/10 font-medium'
               : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
           }`}
         >
           <MessageSquarePlus className="h-4 w-4" />
-          Chats
+          Home chats
         </button>
 
         <button
           onClick={() => setChatScope('project')}
-          className={`flex w-full items-center gap-2 px-2 py-1.5 text-sm rounded-md transition-colors ${
+          className={`mt-1 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${
             chatScope === 'project'
               ? 'text-white bg-white/10 font-medium'
               : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
           }`}
         >
           <FolderOpen className="h-4 w-4" />
-          Projects
+          Project chats
         </button>
       </div>
 
-      {/* Project section */}
       {chatScope === 'project' && (
-        <div className="px-3 mt-3 text-xs text-gray-500">
-
+        <div className="shrink-0 px-3 pt-3 text-xs text-gray-500">
           {activeProject?.path ? (
-            <div className="mb-2">
-              <div className="text-gray-300">{activeProject.name}</div>
-              <div className="truncate">{activeProject.path}</div>
+            <div className="mb-2 rounded-xl border border-white/8 bg-white/[0.03] px-3 py-2">
+              <div className="truncate text-[13px] text-gray-300">{activeProject.name}</div>
+              <div className="truncate text-[11px]">{activeProject.path}</div>
             </div>
           ) : (
             <div className="mb-2">No project selected</div>
           )}
 
-          <div className="flex gap-2 mt-2">
+          <div className="mt-2">
+            <input
+              value={customPath}
+              onChange={(event) => setCustomPath(event.target.value)}
+              placeholder="/path/to/project"
+              className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs text-gray-200 outline-none transition focus:border-white/20"
+            />
+          </div>
+
+          <div className="mt-2 flex gap-2">
             <button
               onClick={handlePickProjectFolder}
-              className="text-gray-400 hover:text-white"
+              disabled={isAddingProject}
+              className="rounded-lg border border-white/10 px-3 py-1.5 text-gray-400 transition hover:bg-white/5 hover:text-white disabled:opacity-50"
             >
               Choose
             </button>
@@ -194,9 +200,9 @@ export default function Sidebar({
             <button
               onClick={handleAddCustomProject}
               disabled={isAddingProject}
-              className="text-gray-400 hover:text-white disabled:opacity-50"
+              className="rounded-lg border border-white/10 px-3 py-1.5 text-gray-400 transition hover:bg-white/5 hover:text-white disabled:opacity-50"
             >
-              Add
+              {isAddingProject ? 'Adding…' : 'Add'}
             </button>
           </div>
 
@@ -206,10 +212,9 @@ export default function Sidebar({
         </div>
       )}
 
-      {/* Sessions */}
-      <div className="flex-1 overflow-y-auto px-2 mt-4">
-        <div className="px-2 mb-2 text-[11px] font-medium text-gray-500 uppercase tracking-wider">
-          Recents
+      <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3 pt-4">
+        <div className="mb-2 px-2 text-[11px] font-medium uppercase tracking-wider text-gray-500">
+          {chatScope === 'project' ? 'Project history' : 'Home history'}
         </div>
 
         {displayedSessions.length === 0 ? (

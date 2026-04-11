@@ -59,7 +59,7 @@ export default function FormattedMessage({ content }) {
               }
 
               return line ? (
-                <p key={lineIndex} className="w-full whitespace-pre-wrap wrap-break-word text-app-text/95">
+                <p key={lineIndex} className="w-full whitespace-pre-wrap break-words text-app-text/95">
                   {formatInline(line)}
                 </p>
               ) : (

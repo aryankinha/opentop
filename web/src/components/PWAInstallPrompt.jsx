@@ -39,7 +39,7 @@ export function PWAInstallPrompt({ showPrompt, canInstall, platform, installSucc
   // Show success notification
   if (installSuccess) {
     return (
-      <div className="fixed top-0 left-0 right-0 z-50 p-3 animate-in slide-in-from-top duration-300">
+      <div className="fixed left-0 right-0 top-0 z-50 animate-in slide-in-from-top p-2 duration-300 sm:p-3">
         <div className="app-panel mx-auto flex max-w-xl items-center gap-3 rounded-[24px] border border-emerald-400/20 bg-emerald-500/10 px-4 py-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-emerald-400/20 text-emerald-100">
             <CheckCircle className="w-4 h-4 text-white" />
@@ -66,8 +66,8 @@ export function PWAInstallPrompt({ showPrompt, canInstall, platform, installSucc
   }
   
   return (
-    <div className="fixed top-0 left-0 right-0 z-50 p-3 animate-in slide-in-from-top duration-300">
-      <div className="app-panel mx-auto flex max-w-xl items-center gap-3 rounded-[24px] px-4 py-3">
+    <div className="fixed left-0 right-0 top-0 z-50 animate-in slide-in-from-top p-2 duration-300 sm:p-3">
+      <div className="app-panel mx-auto flex max-w-xl flex-wrap items-center gap-2 rounded-[24px] px-3 py-3 sm:flex-nowrap sm:gap-3 sm:px-4">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-white/8 bg-white/[0.05] text-[var(--color-app-text)]">
           <Download className="h-4 w-4" />
         </div>
@@ -80,7 +80,7 @@ export function PWAInstallPrompt({ showPrompt, canInstall, platform, installSucc
 
         <button
           onClick={handleInstall}
-          className="flex-shrink-0 rounded-full bg-[var(--color-app-text)] px-3 py-1.5 text-sm font-medium text-[#181513] transition hover:bg-[#fff8ef]"
+          className="flex-shrink-0 rounded-full bg-[var(--color-app-text)] px-3 py-1.5 text-xs font-medium text-[#181513] transition hover:bg-[#fff8ef] sm:text-sm"
         >
           {canInstall ? 'Install' : 'How to Install'}
         </button>

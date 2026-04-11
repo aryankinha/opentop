@@ -35,20 +35,14 @@ export default function ChatInput({
   }, [input])
 
   const handleSend = () => {
+    if (!input.trim() || isLoading) return
     onSend(input, selectedModel)
   }
 
   return (
-    <div className={`mx-auto w-full ${isInitial ? 'max-w-2xl' : 'max-w-3xl'}`}>
-      <div className="rounded-[24px] border border-[var(--color-app-border)] bg-[var(--color-app-soft)] px-2 py-2 sm:px-3 md:px-4">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:gap-3">
-          <button
-            className="mb-0 hidden h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/8 bg-white/[0.04] text-[var(--color-app-muted)] transition hover:bg-white/[0.08] hover:text-[var(--color-app-text)] sm:flex"
-            type="button"
-          >
-            <Plus className="h-4 w-4" />
-          </button>
-
+    <div className={`mx-auto w-full ${isInitial ? 'max-w-3xl' : 'max-w-3xl'}`}>
+      <div className="rounded-[22px] border border-[var(--color-app-border)] bg-[var(--color-app-soft)] px-2 py-2 sm:px-3">
+        <div className="flex flex-col gap-2">
           <textarea
             ref={inputRef}
             value={input}
@@ -62,40 +56,50 @@ export default function ChatInput({
             placeholder={isInitial ? 'Message OpenTop' : 'Reply to OpenTop'}
             disabled={isLoading}
             rows={1}
-            className="max-h-[220px] min-h-[48px] flex-1 resize-none bg-transparent px-3 py-3 text-[14px] sm:text-[15px] leading-6 sm:leading-7 text-[var(--color-app-text)] outline-none placeholder:text-[var(--color-app-muted)]"
+            className="max-h-[220px] min-h-[44px] w-full resize-none bg-transparent px-3 py-2.5 text-[14px] leading-6 text-[var(--color-app-text)] outline-none placeholder:text-[var(--color-app-muted)] sm:text-[15px] sm:leading-7"
             autoFocus={isInitial}
           />
 
-          <div className="flex shrink-0 items-center gap-2 self-end sm:self-auto sm:mb-1">
-            <ModelSelector currentModel={selectedModel} onSelect={(modelId) => {
-              setSelectedModel(modelId)
-              localStorage.setItem('selectedModel', modelId)
-            }} />
-
+          <div className="flex items-center justify-between gap-2 px-1 pb-1">
             <button
-              onClick={isLoading ? onCancel : handleSend}
-              disabled={isLoading ? !onCancel : !input.trim()}
-              className={[
-                'flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-2xl transition',
-                isLoading
-                  ? 'bg-[#da7756] text-white hover:bg-[#ca6a4b]'
-                  : input.trim()
-                  ? 'bg-[var(--color-app-text)] text-[#181513] hover:bg-white'
-                  : 'bg-white/[0.05] text-[var(--color-app-muted)]',
-              ].join(' ')}
-              aria-label={isLoading ? 'Cancel message' : 'Send message'}
+              className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/8 bg-white/[0.04] text-[var(--color-app-muted)] transition hover:bg-white/[0.08] hover:text-[var(--color-app-text)] sm:flex"
+              type="button"
             >
-              {isLoading ? (
-                <Square className="h-4 w-4" fill="currentColor" />
-              ) : (
-                <ArrowUp className="h-4 w-4 sm:h-4.5 sm:w-4.5" strokeWidth={2.2} />
-              )}
+              <Plus className="h-4 w-4" />
             </button>
+
+            <div className="ml-auto flex shrink-0 items-center gap-2">
+              <ModelSelector currentModel={selectedModel} onSelect={(modelId) => {
+                setSelectedModel(modelId)
+                localStorage.setItem('selectedModel', modelId)
+              }} />
+
+              <button
+                onClick={isLoading ? onCancel : handleSend}
+                disabled={isLoading ? !onCancel : !input.trim()}
+                className={[
+                  'flex h-10 w-10 items-center justify-center rounded-xl transition sm:h-11 sm:w-11',
+                  isLoading
+                    ? 'bg-[#da7756] text-white hover:bg-[#ca6a4b]'
+                    : input.trim()
+                    ? 'bg-[var(--color-app-text)] text-[#181513] hover:bg-white'
+                    : 'bg-white/[0.05] text-[var(--color-app-muted)]',
+                ].join(' ')}
+                aria-label={isLoading ? 'Cancel message' : 'Send message'}
+                type="button"
+              >
+                {isLoading ? (
+                  <Square className="h-4 w-4" fill="currentColor" />
+                ) : (
+                  <ArrowUp className="h-4 w-4 sm:h-4.5 sm:w-4.5" strokeWidth={2.2} />
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      <p className="mt-3 text-center text-xs text-[var(--color-app-muted)]">
+      <p className="mt-2 text-center text-xs text-[var(--color-app-muted)]">
         OpenTop can act on your machine. Review important output before you trust it.
       </p>
     </div>

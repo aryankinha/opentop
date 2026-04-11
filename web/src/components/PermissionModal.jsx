@@ -58,8 +58,8 @@ export default function PermissionModal({ request, onAllow, onDeny, onAllowAlway
 
   return (
     <div className="fixed inset-0 z-[120] flex items-end justify-center bg-black/60 p-4 backdrop-blur-md sm:items-center">
-      <div className="w-full max-w-lg overflow-hidden rounded-[30px] border border-[var(--color-app-border)] bg-[var(--color-app-panel-strong)] shadow-[0_32px_120px_rgba(0,0,0,0.55)]">
-        <div className="border-b border-white/6 px-5 py-5">
+      <div className="flex max-h-[92dvh] w-full max-w-lg flex-col overflow-hidden rounded-[30px] border border-[var(--color-app-border)] bg-[var(--color-app-panel-strong)] shadow-[0_32px_120px_rgba(0,0,0,0.55)]">
+        <div className="shrink-0 border-b border-white/6 px-5 py-5">
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-xs font-medium uppercase tracking-[0.24em] text-[var(--color-app-muted)]">
@@ -75,7 +75,7 @@ export default function PermissionModal({ request, onAllow, onDeny, onAllowAlway
           </div>
         </div>
 
-        <div className="space-y-5 px-5 py-5">
+        <div className="min-h-0 space-y-5 overflow-y-auto px-5 py-5">
           <div>
             <p className="mb-2 text-sm text-[var(--color-app-muted)]">
               Copilot is asking to run this action:

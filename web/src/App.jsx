@@ -302,7 +302,7 @@ function AppContent() {
     : null
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-app-bg text-app-text">
+    <div className="flex h-dvh min-h-0 w-full overflow-hidden bg-app-bg text-app-text">
       {sidebarOpen && isMobile && (
         <div 
           className="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm md:hidden" 
@@ -327,7 +327,7 @@ function AppContent() {
         generatingSessionId={generatingSessionId}
       />
 
-      <main className="flex flex-1 flex-col min-w-0 h-screen overflow-hidden">
+      <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {activeSessionId ? (
           <ChatView
             sessionId={activeSessionId}

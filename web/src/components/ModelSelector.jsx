@@ -40,14 +40,15 @@ export default function ModelSelector({ currentModel, onSelect }) {
     <div className="relative" ref={menuRef}>
       <button
         onClick={() => setOpen((value) => !value)}
-        className="flex items-center gap-1.5 sm:gap-2 rounded-2xl border border-white/8 bg-white/[0.04] px-2 py-2 sm:px-3 text-xs sm:text-sm text-[var(--color-app-text)] transition hover:bg-white/[0.08] whitespace-nowrap"
+        className="flex items-center gap-1.5 whitespace-nowrap rounded-xl border border-white/8 bg-white/[0.04] px-2 py-2 text-xs text-[var(--color-app-text)] transition hover:bg-white/[0.08] sm:gap-2 sm:px-3 sm:text-sm"
+        type="button"
       >
-        <span className="truncate max-w-[80px] sm:max-w-none">{selected.label}</span>
+        <span className="max-w-[90px] truncate sm:max-w-none">{selected.label}</span>
         <ChevronDown className={`h-3.5 w-3.5 sm:h-4 sm:w-4 text-[var(--color-app-muted)] transition flex-shrink-0 ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open && (
-        <div className="absolute bottom-full right-0 z-50 mb-3 w-56 overflow-hidden rounded-[24px] border border-[var(--color-app-border)] bg-[var(--color-app-panel-strong)] p-2 shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
+        <div className="absolute bottom-full right-0 z-50 mb-3 max-h-[60dvh] w-56 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-[24px] border border-[var(--color-app-border)] bg-[var(--color-app-panel-strong)] p-2 shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
           {Object.entries(MODEL_GROUPS).map(([groupName, models]) => (
             <div key={groupName} className="mb-1 last:mb-0">
               <div className="px-3 pb-1 pt-2 text-[10px] font-medium uppercase tracking-[0.22em] text-[var(--color-app-muted)]">

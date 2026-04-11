@@ -62,7 +62,7 @@ export default function GeneralSettings() {
           </p>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row">
           <input
             id="displayName"
             type="text"
@@ -74,7 +74,7 @@ export default function GeneralSettings() {
           />
           <button
             onClick={handleGenerateRandom}
-            className="px-3 py-2 text-xs font-medium text-zinc-400 hover:text-zinc-200 bg-zinc-800 hover:bg-zinc-700 rounded-lg border border-zinc-700 transition-colors"
+            className="px-3 py-2 text-xs font-medium text-zinc-400 hover:text-zinc-200 bg-zinc-800 hover:bg-zinc-700 rounded-lg border border-zinc-700 transition-colors sm:whitespace-nowrap"
             title="Generate random name"
           >
             🎲 Random
@@ -82,7 +82,7 @@ export default function GeneralSettings() {
         </div>
 
         {/* Save button and message */}
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
           <button
             onClick={handleSave}
             disabled={!hasChanges || isSaving}

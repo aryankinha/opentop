@@ -68,18 +68,18 @@ export default function SessionItem({
         if (!isEditing) onClick?.()
       }}
       className={[
-        'group relative rounded-[22px] border px-4 py-3 transition',
+        'group relative rounded-[18px] border px-3 py-2.5 transition',
         active
           ? 'border-[var(--color-app-border-strong)] bg-white/[0.08] shadow-[0_12px_32px_rgba(0,0,0,0.22)]'
           : 'border-transparent bg-white/[0.03] hover:border-[var(--color-app-border)] hover:bg-white/[0.06]',
       ].join(' ')}
     >
       <div className="flex items-start gap-3">
-        <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-white/8 bg-[rgba(255,255,255,0.04)] text-xs font-semibold uppercase text-[var(--color-app-text)]">
+        <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-white/8 bg-[rgba(255,255,255,0.04)] text-xs font-semibold uppercase text-[var(--color-app-text)]">
           {title.charAt(0)}
         </div>
 
-        <div className="min-w-0 flex-1 group-hover:pr-14 transition-[padding]">
+        <div className="min-w-0 flex-1 pr-14 transition-[padding] md:pr-0 md:group-hover:pr-14">
           {isEditing ? (
             <input
               ref={inputRef}
@@ -103,14 +103,14 @@ export default function SessionItem({
                   </span>
                 )}
               </div>
-              <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[var(--color-app-muted)]">
+              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[var(--color-app-muted)]">
                 {session.project?.name && (
-                  <span className="rounded-full border border-white/8 bg-white/[0.04] px-2 py-1">
+                  <span className="max-w-full truncate rounded-full border border-white/8 bg-white/[0.04] px-2 py-1">
                     {session.project.name}
                   </span>
                 )}
                 {session.model && (
-                  <span>{formatModelLabel(session.model)}</span>
+                  <span className="truncate">{formatModelLabel(session.model)}</span>
                 )}
               </div>
             </>
@@ -119,13 +119,13 @@ export default function SessionItem({
       </div>
 
       {!isEditing && !isGenerating && (
-        <div className="absolute right-3 top-3 flex items-center gap-1 opacity-0 transition group-hover:opacity-100">
+        <div className="absolute right-2 top-2 flex items-center gap-0.5 opacity-100 transition md:opacity-0 md:group-hover:opacity-100">
           <button
             onClick={(event) => {
               event.stopPropagation()
               setIsEditing(true)
             }}
-            className="rounded-lg p-2 text-[var(--color-app-muted)] transition hover:bg-white/[0.08] hover:text-[var(--color-app-text)]"
+            className="rounded-lg p-1.5 text-[var(--color-app-muted)] transition hover:bg-white/[0.08] hover:text-[var(--color-app-text)]"
             title="Edit title"
           >
             <Pencil className="h-3.5 w-3.5" />
@@ -133,7 +133,7 @@ export default function SessionItem({
           <button
             onClick={handleDelete}
             disabled={isDeleting}
-            className="rounded-lg p-2 text-[var(--color-app-muted)] transition hover:bg-white/[0.08] hover:text-rose-200 disabled:opacity-50"
+            className="rounded-lg p-1.5 text-[var(--color-app-muted)] transition hover:bg-white/[0.08] hover:text-rose-200 disabled:opacity-50"
             title="Delete chat"
           >
             <Trash2 className="h-3.5 w-3.5" />

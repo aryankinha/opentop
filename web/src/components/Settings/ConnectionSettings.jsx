@@ -41,7 +41,7 @@ export default function ConnectionSettings() {
         {/* Form area */}
         <div className="flex flex-col gap-2 mt-2">
           <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Server EndPoint</label>
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row">
             <input
               type="text"
               value={inputUrl}
@@ -53,7 +53,7 @@ export default function ConnectionSettings() {
             <button
               onClick={handleConnect}
               disabled={inputUrl.trim() === serverUrl || !inputUrl.trim()}
-              className="px-4 py-2 bg-zinc-200 text-zinc-900 rounded-lg text-xs font-bold hover:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 bg-zinc-200 text-zinc-900 rounded-lg text-xs font-bold hover:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed sm:whitespace-nowrap"
             >
               Update
             </button>

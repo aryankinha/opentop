@@ -21,7 +21,7 @@ export default function EmptyChat({ sessionName, project }) {
 
       {/* Project info (minimal) */}
       {project?.path && (
-        <div className="mt-4 text-xs text-gray-500 truncate max-w-md">
+        <div className="mt-4 max-w-md truncate text-xs text-gray-500">
           {project.name} — {project.path}
         </div>
       )}

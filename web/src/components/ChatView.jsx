@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
-import { FolderOpen, Menu } from 'lucide-react'
+import { Menu } from 'lucide-react'
 import { useApp } from '@/context/AppContext'
 import MessageBubble from './MessageBubble'
 import TypingIndicator from './TypingIndicator'
@@ -33,13 +33,13 @@ export default function ChatView({ sessionId, onOpenSidebar }) {
   }
 
   return (
-    <div className="relative flex h-full flex-col overflow-hidden bg-app-bg text-app-text">
+    <div className="relative flex h-full min-h-0 flex-col overflow-hidden bg-app-bg text-app-text">
 
-      {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-white/10">
+      <div className="flex h-14 shrink-0 items-center gap-3 border-b border-white/10 px-4">
         <button
           onClick={onOpenSidebar}
-          className="md:hidden text-gray-400 hover:text-white"
+          className="rounded-md p-1 text-gray-400 transition hover:bg-white/5 hover:text-white md:hidden"
+          aria-label="Open sidebar"
         >
           <Menu className="h-5 w-5" />
         </button>
@@ -56,12 +56,10 @@ export default function ChatView({ sessionId, onOpenSidebar }) {
         </div>
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden">
-        <div className="mx-auto w-full max-w-3xl px-4 py-6">
-
+      <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
+        <div className="mx-auto w-full max-w-3xl px-3 py-5 sm:px-4">
           {sendError && (
-            <div className="mb-4 text-sm text-red-400">
+            <div className="mb-4 rounded-xl border border-red-400/25 bg-red-500/10 px-3 py-2 text-sm text-red-200">
               {sendError}
             </div>
           )}
@@ -87,13 +85,11 @@ export default function ChatView({ sessionId, onOpenSidebar }) {
             </div>
           )}
 
-          {/* Scroll anchor */}
           <div ref={messagesEndRef} />
         </div>
       </div>
 
-      {/* Input (NOT fixed anymore) */}
-      <div className="border-t border-white/10 px-4 py-3">
+      <div className="shrink-0 border-t border-white/10 px-3 py-3 sm:px-4">
         <div className="mx-auto max-w-3xl">
           <ChatInput
             input={input}

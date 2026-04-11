@@ -75,14 +75,14 @@ export default function MemorySettings() {
         )}
       </div>
 
-      <div className="flex justify-between items-center pt-2 border-t border-zinc-800/50 mt-2">
+      <div className="mt-2 flex flex-col items-start justify-between gap-3 border-t border-zinc-800/50 pt-2 sm:flex-row sm:items-center">
         <button
           onClick={handleClear}
           className="text-xs font-semibold px-3 py-2 text-red-400 hover:text-red-300 hover:bg-zinc-800/50 rounded-lg transition-colors"
         >
           Clear Memory
         </button>
-        <div className="flex gap-2">
+        <div className="flex w-full flex-wrap justify-end gap-2 sm:w-auto">
           {isEditing ? (
             <>
               <button

@@ -19,7 +19,11 @@ export default function ProfileMenu() {
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
+    document.addEventListener('touchstart', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('touchstart', handleClickOutside)
+    }
   }, [])
 
   return (
@@ -30,6 +34,7 @@ export default function ProfileMenu() {
         <button
           onClick={() => setMenuOpen(!menuOpen)}
           className="flex w-full items-center gap-2.5 px-2 py-2 hover:bg-white/5 rounded-lg transition-colors"
+          type="button"
         >
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#cccdc8] text-xs font-semibold text-black/80">
             {avatarLetter}
@@ -52,7 +57,7 @@ export default function ProfileMenu() {
 
         {/* Dropdown */}
         {menuOpen && (
-          <div className="absolute bottom-full left-0 mb-2 w-full bg-[#111] border border-white/10 rounded-md py-1">
+          <div className="absolute bottom-full left-0 mb-2 w-full overflow-hidden rounded-md border border-white/10 bg-[#111] py-1">
 
             <button
               onClick={() => {
@@ -60,6 +65,7 @@ export default function ProfileMenu() {
                 setMenuOpen(false)
               }}
               className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-white/5"
+              type="button"
             >
               Settings
             </button>
@@ -69,6 +75,7 @@ export default function ProfileMenu() {
             <button
               onClick={() => setMenuOpen(false)}
               className="w-full px-3 py-2 text-left text-sm text-gray-500 hover:bg-white/5 hover:text-gray-300"
+              type="button"
             >
               Log out
             </button>

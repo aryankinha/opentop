@@ -140,18 +140,19 @@ export default function ConnectScreen({ onConnect }) {
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[var(--color-app-bg)] px-4 py-8">
+    <div className="relative h-dvh min-h-0 overflow-hidden bg-[var(--color-app-bg)] px-4 py-4 sm:py-8">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(245,158,11,0.14),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(120,113,108,0.12),transparent_24%)]" />
 
-      <div className="relative mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-md items-center justify-center">
-        <AnimatePresence mode="wait">
+      <div className="relative mx-auto flex h-full min-h-0 w-full max-w-md items-center justify-center">
+        <div className="max-h-full w-full overflow-y-auto py-2">
+          <AnimatePresence mode="wait">
           {mode === 'home' && (
             <motion.div
               key="home"
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -12 }}
-              className="app-panel w-full rounded-[32px] px-6 py-8"
+              className="app-panel max-h-[calc(100dvh-3rem)] w-full overflow-y-auto rounded-[32px] px-6 py-8"
             >
               <div className="text-center">
                 <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[24px] border border-amber-400/20 bg-amber-500/10 text-amber-200">
@@ -207,7 +208,7 @@ export default function ConnectScreen({ onConnect }) {
               initial={{ opacity: 0, x: 18 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -18 }}
-              className="app-panel w-full rounded-[32px] px-6 py-8"
+              className="app-panel max-h-[calc(100dvh-3rem)] w-full overflow-y-auto rounded-[32px] px-6 py-8"
             >
               <button
                 onClick={() => setMode('home')}
@@ -275,7 +276,7 @@ export default function ConnectScreen({ onConnect }) {
               initial={{ opacity: 0, scale: 0.96 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.96 }}
-              className="app-panel w-full rounded-[32px] px-6 py-10 text-center"
+              className="app-panel max-h-[calc(100dvh-3rem)] w-full overflow-y-auto rounded-[32px] px-6 py-10 text-center"
             >
               <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-[28px] border border-amber-400/20 bg-amber-500/10 text-amber-200">
                 <Wifi className="h-8 w-8" />
@@ -296,7 +297,7 @@ export default function ConnectScreen({ onConnect }) {
               initial={{ opacity: 0, scale: 0.96 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.96 }}
-              className="app-panel w-full rounded-[32px] px-6 py-8 text-center"
+              className="app-panel max-h-[calc(100dvh-3rem)] w-full overflow-y-auto rounded-[32px] px-6 py-8 text-center"
             >
               <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[24px] border border-rose-400/20 bg-rose-500/10 text-rose-100">
                 <WifiOff className="h-7 w-7" />
@@ -317,7 +318,8 @@ export default function ConnectScreen({ onConnect }) {
               </button>
             </motion.div>
           )}
-        </AnimatePresence>
+          </AnimatePresence>
+        </div>
       </div>
     </div>
   )
